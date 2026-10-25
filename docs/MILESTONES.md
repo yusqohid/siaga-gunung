@@ -206,11 +206,12 @@
 
 ## Fitur di Luar MVP
 
+- [x] Fitur favorit / pin gunung ke Beranda (Bookmarking lokal via SharedPreferences).
+- [x] Filter wilayah / kepulauan (Sumatera, Jawa, Bali & Nusa Tenggara, Sulawesi, Maluku).
+- [ ] Peta interaktif sebaran lokasi gunung api (Flutter Map / OSM).
 - [ ] Push notification perubahan status.
 - [ ] Login dan sinkronisasi checklist.
-- [ ] Peta bahaya atau rute evakuasi.
 - [ ] Pelacakan lokasi.
-- [ ] Prediksi aktivitas gunung.
 - [ ] Panel admin/CMS.
 - [ ] Dukungan banyak sumber selain MAGMA.
 
