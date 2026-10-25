@@ -208,7 +208,7 @@
 
 - [x] Fitur favorit / pin gunung ke Beranda (Bookmarking lokal via SharedPreferences).
 - [x] Filter wilayah / kepulauan (Sumatera, Jawa, Bali & Nusa Tenggara, Sulawesi, Maluku).
-- [ ] Peta interaktif sebaran lokasi gunung api (Flutter Map / OSM).
+- [x] Peta interaktif sebaran lokasi gunung api (Flutter Map / OpenStreetMap dengan koordinat 69 gunung).
 - [ ] Push notification perubahan status.
 - [ ] Login dan sinkronisasi checklist.
 - [ ] Pelacakan lokasi.

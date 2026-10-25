@@ -217,6 +217,14 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
               _buildActionTile(
+                icon: Icons.map_rounded,
+                iconColor: Colors.teal.shade700,
+                title: 'Peta Interaktif Sebaran Gunung',
+                subtitle: 'Visualisasi posisi geografis & status 69 gunung api se-Indonesia',
+                onTap: () => context.go('/map'),
+              ),
+              const SizedBox(height: 8),
+              _buildActionTile(
                 icon: Icons.format_list_bulleted_rounded,
                 iconColor: AppColors.primary,
                 title: 'Daftar Semua Gunung Api',

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'app_shell.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/map/screens/volcano_map_screen.dart';
 import '../../features/volcano/screens/volcano_list_screen.dart';
 import '../../features/volcano/screens/volcano_detail_screen.dart';
 import '../../features/education/screens/education_screen.dart';
@@ -24,6 +25,12 @@ final GoRouter appRouter = GoRouter(
           path: '/',
           pageBuilder: (context, state) => const NoTransitionPage(
             child: HomeScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/map',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: VolcanoMapScreen(),
           ),
         ),
         GoRoute(

@@ -8,14 +8,17 @@ class AppShell extends StatelessWidget {
 
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/volcanoes')) {
+    if (location.startsWith('/map')) {
       return 1;
     }
-    if (location.startsWith('/education')) {
+    if (location.startsWith('/volcanoes')) {
       return 2;
     }
-    if (location.startsWith('/checklist')) {
+    if (location.startsWith('/education')) {
       return 3;
+    }
+    if (location.startsWith('/checklist')) {
+      return 4;
     }
     return 0; // Beranda
   }
@@ -26,12 +29,15 @@ class AppShell extends StatelessWidget {
         context.go('/');
         break;
       case 1:
-        context.go('/volcanoes');
+        context.go('/map');
         break;
       case 2:
-        context.go('/education');
+        context.go('/volcanoes');
         break;
       case 3:
+        context.go('/education');
+        break;
+      case 4:
         context.go('/checklist');
         break;
     }
@@ -51,6 +57,11 @@ class AppShell extends StatelessWidget {
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
             label: 'Beranda',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map_rounded),
+            label: 'Peta',
           ),
           NavigationDestination(
             icon: Icon(Icons.volcano_outlined),

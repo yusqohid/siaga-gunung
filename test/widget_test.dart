@@ -6,6 +6,7 @@ import 'package:siaga_gunung/core/constants/api_constants.dart';
 import 'package:siaga_gunung/core/utils/date_formatter.dart';
 import 'package:siaga_gunung/features/volcano/data/models/volcano_model.dart';
 import 'package:siaga_gunung/features/volcano/providers/volcano_providers.dart';
+import 'package:siaga_gunung/features/map/data/volcano_coordinates.dart';
 import 'package:siaga_gunung/features/education/data/education_data.dart';
 import 'package:siaga_gunung/features/checklist/data/checklist_data.dart';
 
@@ -23,6 +24,7 @@ void main() {
     expect(find.text('SiagaGunung'), findsOneWidget);
     // Verify navigation tabs
     expect(find.text('Beranda'), findsOneWidget);
+    expect(find.text('Peta'), findsOneWidget);
     expect(find.text('Gunung'), findsOneWidget);
     expect(find.text('Edukasi'), findsOneWidget);
     expect(find.text('Checklist'), findsOneWidget);
@@ -141,5 +143,26 @@ void main() {
     await notifier.toggleFavorite('merapi');
     expect(notifier.isFavorite('merapi'), false);
     expect(notifier.state.contains('merapi'), false);
+  });
+
+  test('VolcanoCoordinatesData coverage and fallback test', () {
+    expect(VolcanoCoordinatesData.allCoordinates.length, 69);
+
+    for (final entry in VolcanoCoordinatesData.allCoordinates.entries) {
+      final coord = entry.value;
+      // Coordinates must fall within Indonesia geographic bounding box
+      expect(coord.latitude, inInclusiveRange(-12.0, 7.0));
+      expect(coord.longitude, inInclusiveRange(94.0, 142.0));
+    }
+
+    // Direct match
+    final merapi = VolcanoCoordinatesData.getCoordinate('Merapi');
+    expect(merapi.latitude, closeTo(-7.54, 0.05));
+    expect(merapi.longitude, closeTo(110.446, 0.05));
+
+    // Fallback match for unknown volcano
+    final unknown = VolcanoCoordinatesData.getCoordinate('Gunung Misterius', location: 'Jawa Timur');
+    expect(unknown.name, 'Gunung Misterius');
+    expect(unknown.latitude, closeTo(-7.5, 2.0));
   });
 }

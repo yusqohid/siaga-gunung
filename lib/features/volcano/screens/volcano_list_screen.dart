@@ -44,6 +44,11 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
         title: const Text('Status Aktivitas Gunung'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.map_rounded),
+            tooltip: 'Buka Peta Sebaran',
+            onPressed: () => context.go('/map'),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Segarkan Data',
             onPressed: () => ref.read(volcanoListProvider.notifier).refresh(),
