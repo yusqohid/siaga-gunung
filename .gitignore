@@ -54,3 +54,6 @@ backend/.venv/
 *$py.class
 .pytest_cache/
 backend/.env
+
+# Editor / Tools
+.commandcode/

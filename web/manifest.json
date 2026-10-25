@@ -1,11 +1,11 @@
 {
-    "name": "siaga_gunung",
-    "short_name": "siaga_gunung",
+    "name": "SiagaGunung",
+    "short_name": "SiagaGunung",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#D32F2F",
+    "theme_color": "#D32F2F",
+    "description": "Aplikasi Informasi Aktivitas dan Edukasi Kesiapsiagaan Gunung Api (Android & Web).",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
