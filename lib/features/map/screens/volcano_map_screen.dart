@@ -10,6 +10,7 @@ import '../../../shared/widgets/error_view.dart';
 import '../../volcano/data/models/volcano_model.dart';
 import '../../volcano/providers/volcano_providers.dart';
 import '../data/volcano_coordinates.dart';
+import '../services/location_service.dart';
 
 class VolcanoMapScreen extends ConsumerStatefulWidget {
   const VolcanoMapScreen({super.key});
@@ -105,10 +106,24 @@ class _VolcanoMapScreenState extends ConsumerState<VolcanoMapScreen>
     _animatedMapMove(coord.latLng, 8.5);
   }
 
+  double _getRecommendationRadiusMeters(VolcanoSummary volcano) {
+    switch (volcano.activityLevel) {
+      case ActivityLevel.levelIV:
+        return 7000.0; // 7 km
+      case ActivityLevel.levelIII:
+        return 5000.0; // 5 km
+      case ActivityLevel.levelII:
+        return 3000.0; // 3 km
+      case ActivityLevel.levelI:
+        return 1500.0; // 1.5 km
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final listAsync = ref.watch(volcanoListProvider);
     final favoriteIds = ref.watch(favoriteVolcanoesProvider);
+    final userLocationState = ref.watch(userLocationProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -180,33 +195,85 @@ class _VolcanoMapScreenState extends ConsumerState<VolcanoMapScreen>
                     userAgentPackageName: 'com.siagagunung.app',
                   ),
 
-                  // Marker Layer for Volcanoes
-                  MarkerLayer(
-                    markers: visibleVolcanoes.map((volcano) {
-                      final coord = VolcanoCoordinatesData.getCoordinate(
-                        volcano.name,
-                        location: volcano.location,
-                      );
-                      final isSelected = _selectedVolcano?.id == volcano.id;
-                      final isFav = favoriteIds.contains(volcano.id);
-                      final isHighAlert = volcano.activityLevel == ActivityLevel.levelIV ||
-                          volcano.activityLevel == ActivityLevel.levelIII;
+                  // Hazard Recommendation Radius Circle for selected volcano
+                  if (_selectedVolcano != null)
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: VolcanoCoordinatesData.getCoordinate(
+                            _selectedVolcano!.name,
+                            location: _selectedVolcano!.location,
+                          ).latLng,
+                          radius: _getRecommendationRadiusMeters(_selectedVolcano!),
+                          useRadiusInMeter: true,
+                          color: _selectedVolcano!.activityLevel.color.withOpacity(0.18),
+                          borderColor: _selectedVolcano!.activityLevel.color,
+                          borderStrokeWidth: 2.0,
+                        ),
+                      ],
+                    ),
 
-                      return Marker(
-                        point: coord.latLng,
-                        width: isSelected ? 52 : (isHighAlert ? 44 : 36),
-                        height: isSelected ? 52 : (isHighAlert ? 44 : 36),
-                        child: GestureDetector(
-                          onTap: () => _selectVolcano(volcano),
-                          child: _buildVolcanoMarker(
-                            volcano: volcano,
-                            isSelected: isSelected,
-                            isFav: isFav,
-                            isHighAlert: isHighAlert,
+                  // Marker Layer for Volcanoes and User Location
+                  MarkerLayer(
+                    markers: [
+                      // User Location marker (GPS)
+                      if (userLocationState.latLng != null)
+                        Marker(
+                          point: userLocationState.latLng!,
+                          width: 36,
+                          height: 36,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.24),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade700,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.blue.withOpacity(0.4),
+                                      blurRadius: 5,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      );
-                    }).toList(),
+
+                      // Volcano pins
+                      ...visibleVolcanoes.map((volcano) {
+                        final coord = VolcanoCoordinatesData.getCoordinate(
+                          volcano.name,
+                          location: volcano.location,
+                        );
+                        final isSelected = _selectedVolcano?.id == volcano.id;
+                        final isFav = favoriteIds.contains(volcano.id);
+                        final isHighAlert = volcano.activityLevel == ActivityLevel.levelIV ||
+                            volcano.activityLevel == ActivityLevel.levelIII;
+
+                        return Marker(
+                          point: coord.latLng,
+                          width: isSelected ? 52 : (isHighAlert ? 44 : 36),
+                          height: isSelected ? 52 : (isHighAlert ? 44 : 36),
+                          child: GestureDetector(
+                            onTap: () => _selectVolcano(volcano),
+                            child: _buildVolcanoMarker(
+                              volcano: volcano,
+                              isSelected: isSelected,
+                              isFav: isFav,
+                              isHighAlert: isHighAlert,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                   ),
                 ],
               ),
@@ -374,12 +441,45 @@ class _VolcanoMapScreenState extends ConsumerState<VolcanoMapScreen>
                 ),
               ),
 
-              // Floating Map Controls (Zoom in, Zoom out, Recenter)
+              // Floating Map Controls (Zoom in, Zoom out, Recenter, GPS Detect)
               Positioned(
                 right: 14,
-                bottom: _selectedVolcano != null ? 180 : 20,
+                bottom: _selectedVolcano != null ? 195 : 20,
                 child: Column(
                   children: [
+                    _buildMapIconButton(
+                      icon: userLocationState.isLoading
+                          ? Icons.hourglass_top_rounded
+                          : Icons.my_location_rounded,
+                      tooltip: 'Cari Gunung Terdekat dari Lokasi Saya',
+                      iconColor: userLocationState.position != null ? Colors.blue.shade700 : null,
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        await ref.read(userLocationProvider.notifier).detectLocation();
+                        final updated = ref.read(userLocationProvider);
+                        if (updated.errorMessage != null) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(updated.errorMessage!),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } else if (updated.nearbyVolcanoes.isNotEmpty) {
+                          final closest = updated.nearbyVolcanoes.first;
+                          _selectVolcano(closest.volcano);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Gunung terdekat: ${closest.volcano.name} (${closest.formattedDistance} dari Anda)',
+                              ),
+                              duration: const Duration(seconds: 4),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 6),
                     _buildMapIconButton(
                       icon: Icons.add_rounded,
                       tooltip: 'Perbesar',
@@ -581,6 +681,11 @@ class _VolcanoMapScreenState extends ConsumerState<VolcanoMapScreen>
       volcano.name,
       location: volcano.location,
     );
+    final userLocationState = ref.watch(userLocationProvider);
+    final nearby = userLocationState.nearbyVolcanoes
+        .where((n) => n.volcano.id == volcano.id)
+        .firstOrNull;
+    final radiusKm = (_getRecommendationRadiusMeters(volcano) / 1000.0).toStringAsFixed(1);
 
     return Card(
       elevation: 6,
@@ -689,6 +794,56 @@ class _VolcanoMapScreenState extends ConsumerState<VolcanoMapScreen>
                 ],
               ],
             ),
+            const SizedBox(height: 8),
+
+            // Radius Bahaya & Jarak dari Pengguna
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: volcano.activityLevel.color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: volcano.activityLevel.color.withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    'Radius Bahaya: ~$radiusKm km',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: volcano.activityLevel.color,
+                    ),
+                  ),
+                ),
+                if (nearby != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.near_me_rounded, size: 10, color: Colors.blue.shade700),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${nearby.formattedDistance} dari Anda',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
 
             // Action Button to Detail
@@ -718,6 +873,7 @@ class _VolcanoMapScreenState extends ConsumerState<VolcanoMapScreen>
   Widget _buildMapIconButton({
     required IconData icon,
     required String tooltip,
+    Color? iconColor,
     required VoidCallback onPressed,
   }) {
     return Container(
@@ -733,7 +889,7 @@ class _VolcanoMapScreenState extends ConsumerState<VolcanoMapScreen>
         ],
       ),
       child: IconButton(
-        icon: Icon(icon, size: 20, color: AppColors.textPrimary),
+        icon: Icon(icon, size: 20, color: iconColor ?? AppColors.textPrimary),
         tooltip: tooltip,
         onPressed: onPressed,
       ),

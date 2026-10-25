@@ -9,6 +9,8 @@ import '../../../shared/widgets/data_freshness_badge.dart';
 import '../../../shared/widgets/error_view.dart';
 import '../../volcano/data/models/volcano_model.dart';
 import '../../volcano/providers/volcano_providers.dart';
+import '../../volcano/providers/status_alert_provider.dart';
+import '../../map/services/location_service.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -93,6 +95,8 @@ class HomeScreen extends ConsumerWidget {
         .toList();
 
     final favorites = ref.watch(favoriteVolcanoesListProvider);
+    final alerts = ref.watch(statusAlertProvider);
+    final userLocationState = ref.watch(userLocationProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,6 +125,19 @@ class HomeScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
 
+        // Active Status Change Alerts (Escalations)
+        if (alerts.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: alerts
+                  .map((alert) => _buildStatusAlertBanner(context, ref, alert))
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
         // High priority alert card if any
         if (highRisk.isNotEmpty) ...[
           Padding(
@@ -129,6 +146,13 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
         ],
+
+        // Nearby Volcano detection card
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _buildNearbyVolcanoCard(context, ref, userLocationState),
+        ),
+        const SizedBox(height: 16),
 
         // Gunung Pantauan Anda (Favorit)
         Padding(
@@ -761,6 +785,196 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusAlertBanner(
+    BuildContext context,
+    WidgetRef ref,
+    StatusAlert alert,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: alert.currentLevel.backgroundColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: alert.currentLevel.color, width: 1.5),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: alert.currentLevel.color, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Perhatian: Kenaikan Status Gunung Api!',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: alert.currentLevel.color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${alert.volcanoName} mengalami kenaikan status dari ${alert.previousLevel.title} ke ${alert.currentLevel.title} (${alert.currentLevel.label}).',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => context.push('/volcanoes/${alert.volcanoId}'),
+                      child: Text(
+                        'Periksa Laporan Resmi →',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: alert.currentLevel.color,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => ref
+                          .read(statusAlertProvider.notifier)
+                          .dismissAlert(alert.volcanoId, alert.currentLevel),
+                      child: const Text(
+                        'Tutup',
+                        style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNearbyVolcanoCard(
+    BuildContext context,
+    WidgetRef ref,
+    UserLocationState locationState,
+  ) {
+    if (locationState.nearbyVolcanoes.isNotEmpty) {
+      final closest = locationState.nearbyVolcanoes.first;
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.blue.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blue.withOpacity(0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.near_me_rounded, size: 20, color: Colors.blue.shade700),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Gunung Terdekat: ',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                      Flexible(
+                        child: Text(
+                          closest.volcano.name,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        '${closest.formattedDistance} dari Anda',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ActivityLevelBadge(level: closest.volcano.activityLevel, compact: true),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.map_outlined, size: 20, color: AppColors.primary),
+              tooltip: 'Lihat di Peta',
+              onPressed: () => context.go('/map'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.location_searching_rounded, size: 18, color: Colors.blue.shade700),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Cari tahu gunung api terdekat dari lokasi Anda',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: locationState.isLoading
+                ? null
+                : () => ref.read(userLocationProvider.notifier).detectLocation(),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            child: locationState.isLoading
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Deteksi GPS', style: TextStyle(fontSize: 11)),
+          ),
+        ],
       ),
     );
   }

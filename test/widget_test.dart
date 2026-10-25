@@ -6,7 +6,9 @@ import 'package:siaga_gunung/core/constants/api_constants.dart';
 import 'package:siaga_gunung/core/utils/date_formatter.dart';
 import 'package:siaga_gunung/features/volcano/data/models/volcano_model.dart';
 import 'package:siaga_gunung/features/volcano/providers/volcano_providers.dart';
+import 'package:siaga_gunung/features/volcano/providers/status_alert_provider.dart';
 import 'package:siaga_gunung/features/map/data/volcano_coordinates.dart';
+import 'package:siaga_gunung/features/map/services/location_service.dart';
 import 'package:siaga_gunung/features/education/data/education_data.dart';
 import 'package:siaga_gunung/features/checklist/data/checklist_data.dart';
 
@@ -164,5 +166,42 @@ void main() {
     final unknown = VolcanoCoordinatesData.getCoordinate('Gunung Misterius', location: 'Jawa Timur');
     expect(unknown.name, 'Gunung Misterius');
     expect(unknown.latitude, closeTo(-7.5, 2.0));
+  });
+
+  test('StatusAlert escalation detection test', () {
+    final alertEscalated = StatusAlert(
+      volcanoId: 'merapi',
+      volcanoName: 'Merapi',
+      previousLevel: ActivityLevel.levelII,
+      currentLevel: ActivityLevel.levelIII,
+      detectedAt: DateTime.now(),
+    );
+    expect(alertEscalated.isEscalated, true);
+
+    final alertDeescalated = StatusAlert(
+      volcanoId: 'merapi',
+      volcanoName: 'Merapi',
+      previousLevel: ActivityLevel.levelIII,
+      currentLevel: ActivityLevel.levelII,
+      detectedAt: DateTime.now(),
+    );
+    expect(alertDeescalated.isEscalated, false);
+  });
+
+  test('NearbyVolcano distance formatting test', () {
+    final v = VolcanoSummary(
+      id: 'merapi',
+      name: 'Merapi',
+      activityLevel: ActivityLevel.levelIII,
+      levelLabel: 'Siaga',
+      fetchedAt: DateTime.now(),
+    );
+    final coord = VolcanoCoordinatesData.getCoordinate('Merapi');
+
+    final nearbyShort = NearbyVolcano(volcano: v, coordinate: coord, distanceKm: 0.65);
+    expect(nearbyShort.formattedDistance, '650 m');
+
+    final nearbyLong = NearbyVolcano(volcano: v, coordinate: coord, distanceKm: 24.84);
+    expect(nearbyLong.formattedDistance, '24.8 km');
   });
 }

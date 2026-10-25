@@ -204,16 +204,23 @@
 
 ---
 
-## Fitur di Luar MVP
+## Fitur Pasca-MVP yang Telah Selesai
 
 - [x] Fitur favorit / pin gunung ke Beranda (Bookmarking lokal via SharedPreferences).
 - [x] Filter wilayah / kepulauan (Sumatera, Jawa, Bali & Nusa Tenggara, Sulawesi, Maluku).
 - [x] Peta interaktif sebaran lokasi gunung api (Flutter Map / OpenStreetMap dengan koordinat 69 gunung).
-- [ ] Push notification perubahan status.
-- [ ] Login dan sinkronisasi checklist.
-- [ ] Pelacakan lokasi.
-- [ ] Panel admin/CMS.
-- [ ] Dukungan banyak sumber selain MAGMA.
+- [x] Deteksi gunung api terdekat berdasarkan lokasi GPS pengguna (Haversine distance).
+- [x] Visualisasi radius bahaya rekomendasi pada peta (CircleLayer transparan).
+- [x] Sistem peringatan kenaikan level aktivitas gunung api (In-App escalation alerts).
+- [x] Fitur bagikan laporan resmi MAGMA & ekspor checklist TSB via Share API.
+- [x] Dockerization (Dockerfile backend, Dockerfile.web Nginx, docker-compose.yml) & GitHub Actions CI.
+
+## Backlog Masa Depan
+
+- [ ] Push notification remote (Firebase Cloud Messaging).
+- [ ] Login akun cloud & sinkronisasi multi-device.
+- [ ] Panel admin/CMS pengelolaan konten edukasi.
+- [ ] Dukungan multi-sumber data kegempaan (BMKG open API).
 
 Fitur-fitur di atas dipertahankan sebagai backlog pasca-MVP dan tidak memblokir rilis MVP.
 

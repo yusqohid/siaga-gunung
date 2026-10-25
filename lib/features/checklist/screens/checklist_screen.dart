@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../data/checklist_data.dart';
@@ -23,6 +24,31 @@ class ChecklistScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Checklist Barang Siaga'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share_rounded),
+            tooltip: 'Bagikan / Ekspor Checklist',
+            onPressed: () {
+              final buffer = StringBuffer();
+              buffer.writeln('📋 Checklist Tas Siaga Bencana (TSB 72 Jam) — SiagaGunung');
+              buffer.writeln('Status Kesiapan: ${progress.completed} dari ${progress.total} item terpenuhi (${(progress.percentage * 100).toInt()}%)\n');
+
+              for (final entry in categories.entries) {
+                buffer.writeln('【 ${entry.key} 】');
+                for (final item in entry.value) {
+                  final isChecked = checkedIds.contains(item.id);
+                  buffer.writeln('${isChecked ? '✅ [Siap]' : '⬜ [Belum]'} ${item.title}');
+                  buffer.writeln('   Catatan: ${item.description}');
+                }
+                buffer.writeln();
+              }
+
+              buffer.writeln('📞 Nomor Darurat Nasional (Bebas Pulsa):');
+              buffer.writeln('• BNPB: 117 | Basarnas: 115 | Ambulans: 118 | Polisi: 110');
+              buffer.writeln('\nAplikasi SiagaGunung — Selalu Siaga, Kenali Risikonya.');
+
+              Share.share(buffer.toString().trim(), subject: 'Checklist Tas Siaga Bencana');
+            },
+          ),
           if (checkedIds.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.restart_alt_rounded),
