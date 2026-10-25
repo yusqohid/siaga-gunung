@@ -5,6 +5,7 @@ import 'package:siaga_gunung/main.dart';
 import 'package:siaga_gunung/core/constants/api_constants.dart';
 import 'package:siaga_gunung/core/utils/date_formatter.dart';
 import 'package:siaga_gunung/features/volcano/data/models/volcano_model.dart';
+import 'package:siaga_gunung/features/volcano/providers/volcano_providers.dart';
 import 'package:siaga_gunung/features/education/data/education_data.dart';
 import 'package:siaga_gunung/features/checklist/data/checklist_data.dart';
 
@@ -104,5 +105,41 @@ void main() {
     expect(categories.contains('Dokumen Penting'), true);
     expect(categories.contains('Pelindung Diri'), true);
     expect(categories.contains('Logistik'), true);
+  });
+
+  test('VolcanoRegion mapping and region getter test', () {
+    expect(VolcanoRegion.fromLocation('Lampung'), VolcanoRegion.sumatera);
+    expect(VolcanoRegion.fromLocation('Sumatera Barat'), VolcanoRegion.sumatera);
+    expect(VolcanoRegion.fromLocation('Aceh'), VolcanoRegion.sumatera);
+    expect(VolcanoRegion.fromLocation('Jawa Timur'), VolcanoRegion.jawa);
+    expect(VolcanoRegion.fromLocation('Daerah Istimewa Yogyakarta dan Jawa Tengah'), VolcanoRegion.jawa);
+    expect(VolcanoRegion.fromLocation('Nusa Tenggara Timur'), VolcanoRegion.baliNusaTenggara);
+    expect(VolcanoRegion.fromLocation('Bali'), VolcanoRegion.baliNusaTenggara);
+    expect(VolcanoRegion.fromLocation('Sulawesi Utara'), VolcanoRegion.sulawesi);
+    expect(VolcanoRegion.fromLocation('Maluku Utara'), VolcanoRegion.maluku);
+    expect(VolcanoRegion.fromLocation(null), VolcanoRegion.all);
+
+    final summary = VolcanoSummary(
+      id: 'merapi',
+      name: 'Merapi',
+      activityLevel: ActivityLevel.levelIII,
+      levelLabel: 'Siaga',
+      location: 'Jawa Tengah',
+      fetchedAt: DateTime.now(),
+    );
+    expect(summary.region, VolcanoRegion.jawa);
+  });
+
+  test('FavoriteVolcanoesNotifier toggle and persistence logic test', () async {
+    final notifier = FavoriteVolcanoesNotifier();
+    expect(notifier.isFavorite('merapi'), false);
+
+    await notifier.toggleFavorite('merapi');
+    expect(notifier.isFavorite('merapi'), true);
+    expect(notifier.state.contains('merapi'), true);
+
+    await notifier.toggleFavorite('merapi');
+    expect(notifier.isFavorite('merapi'), false);
+    expect(notifier.state.contains('merapi'), false);
   });
 }

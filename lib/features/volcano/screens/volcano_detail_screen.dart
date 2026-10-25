@@ -18,11 +18,35 @@ class VolcanoDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(volcanoDetailProvider(volcanoId));
+    final favoriteIds = ref.watch(favoriteVolcanoesProvider);
+    final isFavorite = favoriteIds.contains(volcanoId);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Aktivitas'),
         actions: [
+          IconButton(
+            icon: Icon(
+              isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
+              color: isFavorite ? Colors.amber : null,
+            ),
+            tooltip: isFavorite ? 'Hapus dari Pantauan' : 'Sematkan ke Pantauan (Beranda)',
+            onPressed: () {
+              ref.read(favoriteVolcanoesProvider.notifier).toggleFavorite(volcanoId);
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    isFavorite
+                        ? 'Dihapus dari Gunung Pantauan.'
+                        : 'Disematkan ke Gunung Pantauan di Beranda.',
+                  ),
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Segarkan Laporan',
@@ -85,9 +109,25 @@ class VolcanoDetailScreen extends ConsumerWidget {
                     ),
                   ),
                   if (volcano.location != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            volcano.region.label,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
                         const SizedBox(width: 4),
                         Expanded(

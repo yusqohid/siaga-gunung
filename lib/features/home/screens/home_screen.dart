@@ -92,6 +92,8 @@ class HomeScreen extends ConsumerWidget {
             v.activityLevel == ActivityLevel.levelIII)
         .toList();
 
+    final favorites = ref.watch(favoriteVolcanoesListProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -127,6 +129,13 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
         ],
+
+        // Gunung Pantauan Anda (Favorit)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _buildFavoriteSection(context, ref, favorites),
+        ),
+        const SizedBox(height: 20),
 
         // Summary counts by level (Level IV, III, II, I)
         Padding(
@@ -508,6 +517,243 @@ class HomeScreen extends ConsumerWidget {
       height: 24,
       width: 1,
       color: const Color(0xFFE2E8F0),
+    );
+  }
+
+  Widget _buildFavoriteSection(
+    BuildContext context,
+    WidgetRef ref,
+    List<VolcanoSummary> favorites,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.star_rounded, size: 20, color: Colors.amber),
+                const SizedBox(width: 6),
+                const Text(
+                  'Gunung Pantauan Anda',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (favorites.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${favorites.length}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (favorites.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  ref.read(showOnlyFavoritesFilterProvider.notifier).state = true;
+                  context.go('/volcanoes');
+                },
+                child: const Text(
+                  'Kelola',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (favorites.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.star_outline_rounded, size: 22, color: Colors.amber.shade800),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Belum ada gunung yang dipantau',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Tandai ikon bintang ⭐ pada gunung terdekat untuk melihat statusnya di sini.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                OutlinedButton(
+                  onPressed: () => context.go('/volcanoes'),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  ),
+                  child: const Text('Pilih', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+          )
+        else
+          SizedBox(
+            height: 115,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: favorites.length,
+              separatorBuilder: (_, index) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final volcano = favorites[index];
+                return _buildFavoriteVolcanoCard(context, ref, volcano);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFavoriteVolcanoCard(
+    BuildContext context,
+    WidgetRef ref,
+    VolcanoSummary volcano,
+  ) {
+    return Container(
+      width: 210,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: volcano.activityLevel.color.withOpacity(0.35),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push('/volcanoes/${volcano.id}'),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ActivityLevelBadge(level: volcano.activityLevel, compact: true),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        volcano.region.label,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      volcano.name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      volcano.location ?? 'Indonesia',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Lihat Detail',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: volcano.activityLevel.color,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 12,
+                      color: volcano.activityLevel.color,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

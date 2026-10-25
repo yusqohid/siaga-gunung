@@ -68,6 +68,45 @@ enum ActivityLevel {
   }
 }
 
+enum VolcanoRegion {
+  all('all', 'Semua Wilayah'),
+  sumatera('sumatera', 'Sumatera'),
+  jawa('jawa', 'Jawa'),
+  baliNusaTenggara('bali_nusa_tenggara', 'Bali & Nusa Tenggara'),
+  sulawesi('sulawesi', 'Sulawesi'),
+  maluku('maluku', 'Maluku');
+
+  final String id;
+  final String label;
+
+  const VolcanoRegion(this.id, this.label);
+
+  static VolcanoRegion fromLocation(String? location) {
+    if (location == null) return VolcanoRegion.all;
+    final loc = location.toLowerCase();
+    if (loc.contains('aceh') ||
+        loc.contains('sumatera') ||
+        loc.contains('bengkulu') ||
+        loc.contains('jambi') ||
+        loc.contains('lampung')) {
+      return VolcanoRegion.sumatera;
+    }
+    if (loc.contains('jawa') || loc.contains('yogyakarta')) {
+      return VolcanoRegion.jawa;
+    }
+    if (loc.contains('bali') || loc.contains('nusa tenggara')) {
+      return VolcanoRegion.baliNusaTenggara;
+    }
+    if (loc.contains('sulawesi')) {
+      return VolcanoRegion.sulawesi;
+    }
+    if (loc.contains('maluku')) {
+      return VolcanoRegion.maluku;
+    }
+    return VolcanoRegion.all;
+  }
+}
+
 class VolcanoSummary {
   final String id;
   final String name;
@@ -88,6 +127,8 @@ class VolcanoSummary {
     this.reportTime,
     required this.fetchedAt,
   });
+
+  VolcanoRegion get region => VolcanoRegion.fromLocation(location);
 
   factory VolcanoSummary.fromJson(Map<String, dynamic> json) {
     return VolcanoSummary(
@@ -193,6 +234,8 @@ class VolcanoDetail {
     this.otherDescription,
     required this.fetchedAt,
   });
+
+  VolcanoRegion get region => VolcanoRegion.fromLocation(location);
 
   factory VolcanoDetail.fromJson(Map<String, dynamic> json) {
     return VolcanoDetail(

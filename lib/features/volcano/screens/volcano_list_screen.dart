@@ -29,7 +29,15 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
   Widget build(BuildContext context) {
     final listAsync = ref.watch(volcanoListProvider);
     final selectedLevel = ref.watch(volcanoLevelFilterProvider);
+    final selectedRegion = ref.watch(volcanoRegionFilterProvider);
+    final showOnlyFavorites = ref.watch(showOnlyFavoritesFilterProvider);
+    final favoriteIds = ref.watch(favoriteVolcanoesProvider);
     final searchQuery = ref.watch(volcanoSearchQueryProvider);
+
+    final isAnyFilterActive = searchQuery.isNotEmpty ||
+        selectedLevel != null ||
+        selectedRegion != VolcanoRegion.all ||
+        showOnlyFavorites;
 
     return Scaffold(
       appBar: AppBar(
@@ -47,8 +55,9 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
           // Search & Filter header
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Search bar
                 TextField(
@@ -57,7 +66,7 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
                     ref.read(volcanoSearchQueryProvider.notifier).state = val;
                   },
                   decoration: InputDecoration(
-                    hintText: 'Cari nama gunung atau provinsi...',
+                    hintText: 'Cari nama gunung, lokasi, pulau...',
                     hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
                     prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textSecondary),
                     suffixIcon: searchQuery.isNotEmpty
@@ -78,15 +87,49 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
-                // Filter chips: Semua | Level IV | Level III | Level II | Level I
+                // Filter row 1: Wilayah / Kepulauan
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      ...VolcanoRegion.values.map(
+                        (region) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _buildFilterChip(
+                            label: region.label,
+                            isSelected: selectedRegion == region,
+                            color: AppColors.primary,
+                            onSelected: () {
+                              ref.read(volcanoRegionFilterProvider.notifier).state = region;
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Filter row 2: Status Level & Favorit
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      // ⭐ Favorit filter chip
                       _buildFilterChip(
-                        label: 'Semua',
+                        label: '⭐ Favorit (${favoriteIds.length})',
+                        isSelected: showOnlyFavorites,
+                        color: Colors.amber.shade800,
+                        onSelected: () {
+                          ref.read(showOnlyFavoritesFilterProvider.notifier).state =
+                              !showOnlyFavorites;
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      _buildFilterChip(
+                        label: 'Semua Status',
                         isSelected: selectedLevel == null,
                         onSelected: () {
                           ref.read(volcanoLevelFilterProvider.notifier).state = null;
@@ -110,6 +153,33 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
                     ],
                   ),
                 ),
+
+                // Reset filter action if active
+                if (isAnyFilterActive) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      GestureDetector(
+                        onTap: _resetAllFilters,
+                        child: const Row(
+                          children: [
+                            Icon(Icons.filter_alt_off_rounded, size: 14, color: AppColors.primary),
+                            SizedBox(width: 4),
+                            Text(
+                              'Reset Filter',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -131,6 +201,14 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
         ],
       ),
     );
+  }
+
+  void _resetAllFilters() {
+    _searchController.clear();
+    ref.read(volcanoSearchQueryProvider.notifier).state = '';
+    ref.read(volcanoLevelFilterProvider.notifier).state = null;
+    ref.read(volcanoRegionFilterProvider.notifier).state = VolcanoRegion.all;
+    ref.read(showOnlyFavoritesFilterProvider.notifier).state = false;
   }
 
   Widget _buildFilterChip({
@@ -165,34 +243,47 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
   Widget _buildVolcanoList(BuildContext context, VolcanoListResponse response) {
     final searchQuery = ref.watch(volcanoSearchQueryProvider).trim().toLowerCase();
     final selectedLevel = ref.watch(volcanoLevelFilterProvider);
+    final selectedRegion = ref.watch(volcanoRegionFilterProvider);
+    final showOnlyFavorites = ref.watch(showOnlyFavoritesFilterProvider);
+    final favoriteIds = ref.watch(favoriteVolcanoesProvider);
 
     // Apply client filters
     final filtered = response.volcanoes.where((v) {
-      final matchesLevel = selectedLevel == null || v.activityLevel == selectedLevel;
-      final matchesSearch = searchQuery.isEmpty ||
-          v.name.toLowerCase().contains(searchQuery) ||
-          (v.location != null && v.location!.toLowerCase().contains(searchQuery));
-      return matchesLevel && matchesSearch;
+      if (showOnlyFavorites && !favoriteIds.contains(v.id)) {
+        return false;
+      }
+      if (selectedLevel != null && v.activityLevel != selectedLevel) {
+        return false;
+      }
+      if (selectedRegion != VolcanoRegion.all && v.region != selectedRegion) {
+        return false;
+      }
+      if (searchQuery.isNotEmpty) {
+        final matchesSearch = v.name.toLowerCase().contains(searchQuery) ||
+            (v.location != null && v.location!.toLowerCase().contains(searchQuery)) ||
+            v.region.label.toLowerCase().contains(searchQuery);
+        if (!matchesSearch) return false;
+      }
+      return true;
     }).toList();
 
     if (filtered.isEmpty) {
       return EmptyStateView(
         title: 'Gunung Tidak Ditemukan',
-        message: 'Tidak ada hasil untuk pencarian "$searchQuery"'
-            '${selectedLevel != null ? ' pada ${selectedLevel.title}' : ''}.',
-        action: OutlinedButton(
-          onPressed: () {
-            _searchController.clear();
-            ref.read(volcanoSearchQueryProvider.notifier).state = '';
-            ref.read(volcanoLevelFilterProvider.notifier).state = null;
-          },
-          child: const Text('Reset Pencarian & Filter'),
+        message: 'Tidak ada hasil untuk filter dan kata kunci saat ini.',
+        action: OutlinedButton.icon(
+          icon: const Icon(Icons.refresh_rounded, size: 16),
+          onPressed: _resetAllFilters,
+          label: const Text('Reset Semua Filter'),
         ),
       );
     }
 
-    // If a specific level is filtered or searching, show flat list
-    final isFiltering = selectedLevel != null || searchQuery.isNotEmpty;
+    // If a specific level is filtered, region filtered, or searching, show flat list
+    final isFiltering = selectedLevel != null ||
+        searchQuery.isNotEmpty ||
+        selectedRegion != VolcanoRegion.all ||
+        showOnlyFavorites;
 
     return RefreshIndicator(
       onRefresh: () => ref.read(volcanoListProvider.notifier).refresh(),
@@ -217,7 +308,7 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
           const SizedBox(height: 12),
 
           if (isFiltering) ...[
-            // Flat list when searching or level filtering
+            // Flat list when searching or filtering
             ...filtered.map((v) => _buildVolcanoCard(context, v)),
           ] else ...[
             // Grouped by level: Level IV, III, II, I (PRD Section 9.2 & AC-03)
@@ -319,13 +410,16 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
   }
 
   Widget _buildVolcanoCard(BuildContext context, VolcanoSummary volcano) {
+    final favorites = ref.watch(favoriteVolcanoesProvider);
+    final isFav = favorites.contains(volcano.id);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () => context.push('/volcanoes/${volcano.id}'),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
           child: Row(
             children: [
               // Level indicator badge
@@ -351,40 +445,106 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
               ),
               const SizedBox(width: 12),
 
-              // Name and location
+              // Name, region, and location
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      volcano.name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            volcano.name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isFav) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 14,
+                            color: Colors.amber,
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      volcano.location ?? 'Lokasi tidak disebutkan',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            volcano.region.label,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            volcano.location ?? 'Lokasi tidak disebutkan',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 6),
 
-              // Status tag & arrow
+              // Status tag
               ActivityLevelBadge(
                 level: volcano.activityLevel,
                 compact: true,
                 showDot: false,
               ),
-              const SizedBox(width: 6),
+
+              // Star favorite toggle button
+              IconButton(
+                icon: Icon(
+                  isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: isFav ? Colors.amber.shade700 : AppColors.textMuted,
+                  size: 22,
+                ),
+                tooltip: isFav ? 'Hapus dari Pantauan' : 'Sematkan ke Pantauan (Beranda)',
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: () {
+                  ref.read(favoriteVolcanoesProvider.notifier).toggleFavorite(volcano.id);
+                  ScaffoldMessenger.of(context).clearSnackBars();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isFav
+                            ? '${volcano.name} dihapus dari Gunung Pantauan.'
+                            : '${volcano.name} disematkan ke Gunung Pantauan di Beranda.',
+                      ),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+
               const Icon(
                 Icons.chevron_right_rounded,
                 size: 20,

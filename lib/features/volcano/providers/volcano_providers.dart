@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/volcano_model.dart';
 import '../data/repositories/volcano_repository.dart';
 
@@ -9,6 +10,70 @@ final volcanoRepositoryProvider = Provider<VolcanoRepository>((ref) {
 // Search and filter state
 final volcanoSearchQueryProvider = StateProvider<String>((ref) => '');
 final volcanoLevelFilterProvider = StateProvider<ActivityLevel?>((ref) => null);
+final volcanoRegionFilterProvider = StateProvider<VolcanoRegion>((ref) => VolcanoRegion.all);
+final showOnlyFavoritesFilterProvider = StateProvider<bool>((ref) => false);
+
+// Favorite Volcanoes Persistence
+const String _kFavoriteVolcanoesPrefKey = 'siaga_gunung_favorite_volcanoes';
+
+class FavoriteVolcanoesNotifier extends StateNotifier<Set<String>> {
+  bool _isLoaded = false;
+  final Set<String> _pendingToggles = {};
+
+  FavoriteVolcanoesNotifier() : super(<String>{}) {
+    _loadFromStorage();
+  }
+
+  Future<void> _loadFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedList = prefs.getStringList(_kFavoriteVolcanoesPrefKey);
+      final loaded = (savedList ?? []).toSet();
+
+      // Gabungkan aksi user yang terjadi saat storage masih loading
+      for (final id in _pendingToggles) {
+        if (loaded.contains(id)) {
+          loaded.remove(id);
+        } else {
+          loaded.add(id);
+        }
+      }
+      _pendingToggles.clear();
+      _isLoaded = true;
+      state = loaded;
+    } catch (_) {
+      _isLoaded = true;
+    }
+  }
+
+  Future<void> toggleFavorite(String id) async {
+    if (!_isLoaded) {
+      _pendingToggles.add(id);
+    }
+    final updated = Set<String>.from(state);
+    if (updated.contains(id)) {
+      updated.remove(id);
+    } else {
+      updated.add(id);
+    }
+    state = updated;
+    _persist(updated);
+  }
+
+  bool isFavorite(String id) => state.contains(id);
+
+  Future<void> _persist(Set<String> items) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_kFavoriteVolcanoesPrefKey, items.toList());
+    } catch (_) {}
+  }
+}
+
+final favoriteVolcanoesProvider =
+    StateNotifierProvider<FavoriteVolcanoesNotifier, Set<String>>((ref) {
+  return FavoriteVolcanoesNotifier();
+});
 
 // Volcano list state notifier
 class VolcanoListNotifier extends StateNotifier<AsyncValue<VolcanoListResponse>> {
@@ -65,16 +130,45 @@ final filteredVolcanoesProvider = Provider<List<VolcanoSummary>>((ref) {
   final listAsync = ref.watch(volcanoListProvider);
   final searchQuery = ref.watch(volcanoSearchQueryProvider).trim().toLowerCase();
   final levelFilter = ref.watch(volcanoLevelFilterProvider);
+  final regionFilter = ref.watch(volcanoRegionFilterProvider);
+  final showOnlyFavorites = ref.watch(showOnlyFavoritesFilterProvider);
+  final favorites = ref.watch(favoriteVolcanoesProvider);
 
   return listAsync.maybeWhen(
     data: (response) {
       return response.volcanoes.where((v) {
-        final matchesLevel = levelFilter == null || v.activityLevel == levelFilter;
-        final matchesSearch = searchQuery.isEmpty ||
-            v.name.toLowerCase().contains(searchQuery) ||
-            (v.location != null && v.location!.toLowerCase().contains(searchQuery));
-        return matchesLevel && matchesSearch;
+        if (showOnlyFavorites && !favorites.contains(v.id)) {
+          return false;
+        }
+        if (levelFilter != null && v.activityLevel != levelFilter) {
+          return false;
+        }
+        if (regionFilter != VolcanoRegion.all && v.region != regionFilter) {
+          return false;
+        }
+        if (searchQuery.isNotEmpty) {
+          final matchesSearch = v.name.toLowerCase().contains(searchQuery) ||
+              (v.location != null && v.location!.toLowerCase().contains(searchQuery)) ||
+              v.region.label.toLowerCase().contains(searchQuery);
+          if (!matchesSearch) return false;
+        }
+        return true;
       }).toList();
+    },
+    orElse: () => [],
+  );
+});
+
+// Favorite volcanoes list provider
+final favoriteVolcanoesListProvider = Provider<List<VolcanoSummary>>((ref) {
+  final listAsync = ref.watch(volcanoListProvider);
+  final favorites = ref.watch(favoriteVolcanoesProvider);
+
+  return listAsync.maybeWhen(
+    data: (response) {
+      return response.volcanoes
+          .where((v) => favorites.contains(v.id))
+          .toList();
     },
     orElse: () => [],
   );
