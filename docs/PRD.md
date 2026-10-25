@@ -9,7 +9,6 @@
 **Frontend yang direkomendasikan:** Flutter untuk Android dan Web  
 **Backend yang direkomendasikan:** Python + FastAPI  
 **Sumber data status:** MAGMA Indonesia/PVMBG melalui scraper prototipe, sambil memverifikasi opsi API/CAP resmi  
-**Batas penting:** SiagaGunung bukan sistem peringatan dini resmi dan bukan pengganti instruksi otoritas.
 
 ---
 
