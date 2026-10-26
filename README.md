@@ -1,6 +1,6 @@
 # 🌋 SiagaGunung
 
-Aplikasi Informasi Aktivitas dan Edukasi Kesiapsiagaan Gunung Api (Android & Web).
+Aplikasi Informasi Aktivitas dan Edukasi Kesiapsiagaan Mitigasi Gunung Api Multi-Platform (Android & Web).
 
 ---
 
@@ -28,39 +28,50 @@ flowchart LR
         MAGMA["MAGMA Indonesia (PVMBG / ESDM)\nmagma.esdm.go.id"]
     end
 
+    subgraph Production["Production Hosting"]
+        Render["Render.com (Backend API)\nhttps://siaga-gunung.onrender.com"]
+        Netlify["Netlify (Frontend Web)\nContinuous Deployment"]
+    end
+
     Repo -->|HTTP / JSON| API
+    API -.->|Hosted On| Render
+    Client -.->|Hosted On| Netlify
     Adapter -->|HTTP / BeautifulSoup4| MAGMA
 ```
 
 ---
 
-## 🚀 Fitur Utama (Sesuai PRD v1.4)
+## 🚀 Fitur Utama
 
-1. **Daftar Gunung Dinamis (FR-02, AC-03):**
-   - Menampilkan seluruh entri aktif dari MAGMA Indonesia (bukan hardcode 3 gunung).
-   - Diurutkan hierarkis: **Level IV (Awas) → Level III (Siaga) → Level II (Waspada) → Level I (Normal)**, dan alfabetis per level.
-   - Level kosong tetap ditampilkan dengan jumlah 0 dan empty state informatif.
-2. **Pencarian & Filter Level (FR-03, AC-17):**
-   - Pencarian real-time berdasarkan nama gunung atau provinsi.
-   - Filter chip interaktif per level dengan status empty state yang dapat dipulihkan.
-3. **Detail Aktivitas On-Demand (FR-04, AC-04):**
-   - Mengambil laporan detail per gunung hanya ketika dibuka pengguna (tidak membebani situs sumber).
-   - Menampilkan pengamatan visual, kegempaan, klimatologi, dan rekomendasi resmi PVMBG.
-   - Membedakan eksplisit **Waktu Laporan Sumber** dan **Waktu Pengambilan Aplikasi**.
-   - Tautan langsung ke laporan resmi MAGMA Indonesia (`url_launcher`).
-4. **Proteksi Integritas & Anomali Data (FR-05, AC-19):**
-   - Cache otomatis 30 menit dengan ambang basi (stale) 2 jam.
-   - Jika sumber mengalami penurunan jumlah entri >20% secara tiba-tiba/anomali, cache valid sebelumnya dipertahankan dan ditandai label pemeriksaan.
-5. **Modul Edukasi & Panduan Mitigasi (FR-06, FR-07):**
-   - 7 modul resmi bersumber BNPB & PVMBG: 4 Tingkatan Aktivitas, Bahaya Erupsi, Protokol Hujan Abu & Gas, Panduan Evakuasi Prabencana, Tindakan Saat Kejadian, Tindakan Pascaerupsi, dan Tas Siaga 72 Jam.
-6. **Checklist Kesiapsiagaan Mandiri (FR-08, FR-09, AC-11, AC-12):**
-   - Daftar perlengkapan darurat standar BNPB.
-   - Tersimpan persisten di penyimpanan lokal masing-masing perangkat (`SharedPreferences`).
-   - Progress bar interaktif dan opsi reset dengan konfirmasi.
+1. **Daftar Gunung Dinamis (69+ Gunung Api):**
+   - Menampilkan seluruh data gunung api aktif dari MAGMA Indonesia secara real-time.
+   - Diurutkan hierarkis: **Level IV (Awas) → Level III (Siaga) → Level II (Waspada) → Level I (Normal)**, dan alfabetis per tingkatan.
+2. **Pencarian, Filter Wilayah & Favorit:**
+   - Pencarian instan berdasarkan nama gunung atau lokasi.
+   - Filter kepulauan (Sumatera, Jawa, Bali & Nusa Tenggara, Sulawesi, Maluku).
+   - Filter level aktivitas (Awas, Siaga, Waspada, Normal).
+   - Tandai / Sematkan Gunung Api Favorit (disimpan persisten di perangkat).
+3. **Peta Interaktif Sebaran Gunung Api (Interactive Map):**
+   - Didukung oleh OpenStreetMap (`flutter_map`) dengan 69 koordinat presisi.
+   - Marker berkode warna dinamis sesuai tingkat aktivitas, animasi berdenyut untuk status Awas/Siaga.
+   - Lingkaran estimasi Radius Rekomendasi Bahaya (1.5 km s/d 7 km).
+4. **Deteksi Gunung Terdekat (Geolokasi GPS):**
+   - Mendeteksi posisi pengguna secara otomatis dan menghitung jarak radius terdekat ke gunung api aktif.
+5. **Detail Aktivitas On-Demand & Scraping Dinamis:**
+   - Mengambil laporan detail langsung dari MAGMA Indonesia saat dibuka pengguna.
+   - Menampilkan visual kawah, periode pengamatan, data seismik/kegempaan, klimatologi, dan rekomendasi resmi PVMBG.
+   - Banner Peringatan Status Tinggi di Beranda untuk gunung dengan status Awas/Siaga.
+6. **Proteksi Integritas & Anomali Data:**
+   - In-memory caching: 30 menit (list) dan 60 menit (detail).
+   - Proteksi penurunan drastis (>20%) untuk mencegah data hilang saat situs sumber mengalami gangguan.
+7. **Modul Edukasi Mitigasi & Tas Siaga 72 Jam (TSB):**
+   - 7 modul resmi panduan mitigasi bersumber dari BNPB & PVMBG.
+   - Checklist Perlengkapan Darurat interaktif dengan penyimpanan lokal (`SharedPreferences`).
+   - Bagikan laporan status dan ekspor checklist kesiapsiagaan (`share_plus`).
 
 ---
 
-## 💻 Cara Menjalankan
+## 💻 Cara Menjalankan Secara Lokal
 
 ### 1. Menjalankan Backend FastAPI
 
@@ -68,43 +79,64 @@ flowchart LR
 cd backend
 
 # Aktifkan virtual environment
-source .venv/bin/activate  # atau .venv/bin/activate.fish
+source .venv/bin/activate  # Linux / macOS
+# atau: .venv\Scripts\activate  (Windows)
 
-# Jalankan server FastAPI
+# Jalankan server lokal
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
+- Dokumentasi API Swagger UI: `http://localhost:8000/docs`
+- Unit Test: `pytest -v`
 
-Dokumentasi OpenAPI / Swagger UI dapat diakses di: `http://localhost:8000/docs`
-
-Untuk menjalankan test backend:
-```bash
-cd backend
-.venv/bin/pytest -v
-```
-
-### 2. Menjalankan Frontend Flutter (Android / Web)
+### 2. Menjalankan Frontend Flutter
 
 ```bash
-# Pastikan dependencies terinstal
+# Pastikan dependencies terpasang
 flutter pub get
 
-# Jalankan di Web (Chrome)
-flutter run -d chrome
+# Jalankan Web (server mandiri, kompatibel dengan browser apa pun)
+flutter run -d web-server --web-port 8080
+# Buka http://localhost:8080 di browser (Chrome / Firefox / Edge)
 
-# Jalankan di Android
+# Jalankan di Android Emulator / Device
 flutter run -d android
-```
-
-Untuk menjalankan test Flutter:
-```bash
-flutter test
 ```
 
 ---
 
-## 📌 Informasi Scraper Pinned
+## 📦 Build & Deployment
 
-- **Repositori Upstream:** [Gabrielbjb/Magma-Indonesia-API](https://github.com/Gabrielbjb/Magma-Indonesia-API)
-- **Commit Dipin:** `d565a3c3e3db89e979772f0790e911e50c2bd1f5`
-- **Tag:** `Unofficial-Magma-Indonesia-API` (`67620242c70d3620c6fa926281540e18a3fc5992`)
-- **Tanggal Uji:** 25 Oktober 2026
+### Backend (Production URL)
+Backend production saat ini di-hosting di Render:
+- Base URL: `https://siaga-gunung.onrender.com`
+- Swagger UI: `https://siaga-gunung.onrender.com/docs`
+
+### Build Web Statis (Netlify / Vercel / GitHub Pages)
+Aplikasi web secara otomatis terhubung ke backend Render saat di-build dalam mode release:
+```bash
+flutter build web --release
+```
+Hasil build berada di direktori `build/web/`. Proyek ini sudah dilengkapi dengan:
+- [`netlify.toml`](file:///home/light/Dev/flutter/siaga_gunung/netlify.toml) untuk auto-build dan SPA routing di Netlify.
+- `_redirects` untuk mengatasi rute SPA 404.
+
+### Build APK Android
+```bash
+flutter build apk --release
+```
+*(Opsional menentukan URL custom: `--dart-define=API_URL=https://alamat-api-anda.com`)*
+
+### Menjalankan via Docker Compose
+```bash
+docker-compose up -d --build
+```
+- Web: `http://localhost:8080`
+- Backend API: `http://localhost:8000`
+
+---
+
+## 📌 Informasi Sumber & Lisensi Scraper
+
+- **Sumber Data Resmi:** [MAGMA Indonesia (PVMBG - Badan Geologi Kementerian ESDM)](https://magma.esdm.go.id/)
+- **Scraper Reference:** [Gabrielbjb/Magma-Indonesia-API](https://github.com/Gabrielbjb/Magma-Indonesia-API) (Pinned Commit: `d565a3c`)
+- **Lisensi:** Open Source untuk edukasi mitigasi kebencanaan masyarakat.
