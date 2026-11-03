@@ -1,6 +1,6 @@
 # 🌋 SiagaGunung
 
-Aplikasi Informasi Aktivitas dan Edukasi Kesiapsiagaan Gunung Api (Android & Web).
+Aplikasi Informasi Aktivitas dan Edukasi Kesiapsiagaan Gunung Api di Indonesia (Android & Web).
 
 ---
 
