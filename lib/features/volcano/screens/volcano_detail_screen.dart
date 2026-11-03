@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -7,6 +8,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../shared/widgets/activity_level_badge.dart';
 import '../../../shared/widgets/data_freshness_badge.dart';
 import '../../../shared/widgets/error_view.dart';
+import '../../map/data/volcano_coordinates.dart';
 import '../data/models/volcano_model.dart';
 import '../providers/volcano_providers.dart';
 
@@ -45,6 +47,28 @@ class VolcanoDetailScreen extends ConsumerWidget {
                   behavior: SnackBarBehavior.floating,
                 ),
               );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_rounded),
+            tooltip: 'Bagikan Status Laporan',
+            onPressed: () {
+              detailAsync.whenData((resp) {
+                final v = resp.volcano;
+                final coord = VolcanoCoordinatesData.getCoordinate(v.name);
+                final text = '''
+🌋 Status Gunung ${v.name} — SiagaGunung
+• Tingkat Aktivitas: ${v.activityLevel.title} (${v.activityLevel.label})
+• Wilayah: ${v.region.label} (${v.location ?? '-'})
+• Ketinggian: ▲ ${coord.elevation} mdpl
+• Periode Laporan: ${v.reportPeriod ?? 'Terbaru'}
+• Rekomendasi: ${v.recommendation ?? '-'}
+
+Sumber Resmi: MAGMA Indonesia (PVMBG)
+${v.sourceUrl ?? ''}
+''';
+                Share.share(text.trim(), subject: 'Status Gunung ${v.name}');
+              });
             },
           ),
           IconButton(
