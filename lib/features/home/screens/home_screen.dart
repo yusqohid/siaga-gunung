@@ -83,7 +83,7 @@ class HomeScreen extends ConsumerWidget {
   /// Header shown for loading / error states too.
   Widget _buildFrame(BuildContext context, WidgetRef ref, Widget child) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
       children: [
         _buildHeader(context, ref),
         const SizedBox(height: 8),
@@ -159,7 +159,7 @@ class HomeScreen extends ConsumerWidget {
     final relative = DateFormatter.formatRelativeTime(response.fetchedAt);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
       children: [
         _buildHeader(context, ref),
 

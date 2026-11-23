@@ -58,7 +58,7 @@ class _EducationScreenState extends State<EducationScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
                 itemCount: topics.length,
                 itemBuilder: (context, index) => _EducationCard(topic: topics[index]),
               ),

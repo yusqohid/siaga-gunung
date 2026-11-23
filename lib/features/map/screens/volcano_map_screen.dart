@@ -230,6 +230,7 @@ class _VolcanoMapScreenState extends ConsumerState<VolcanoMapScreen>
               padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
               child: Caption('Geser peta · ketuk penanda untuk detail'),
             ),
+            SizedBox(height: MediaQuery.paddingOf(context).bottom + 92),
           ],
         ),
       ),

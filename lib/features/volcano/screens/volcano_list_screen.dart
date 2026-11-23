@@ -157,7 +157,7 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 120),
       children: [
         Caption(
           'Menampilkan ${filtered.length} dari ${response.totalCount}'.toUpperCase(),

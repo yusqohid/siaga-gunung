@@ -40,6 +40,7 @@ class AppShell extends StatelessWidget {
     final selectedIndex = _calculateSelectedIndex(context);
 
     return Scaffold(
+      extendBody: true,
       body: child,
       bottomNavigationBar: SafeArea(
         top: false,
