@@ -31,6 +31,9 @@ class LevelMark extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(size * 0.32),
+        border: solid
+            ? null
+            : Border.all(color: level.tintBorder(p), width: 1),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -95,6 +98,8 @@ class ScreenHeader extends StatelessWidget {
   /// the title row. Prevents the title/eyebrow from being squeezed when there
   /// are several action buttons.
   final bool trailingOnTitleRow;
+  final double eyebrowSize;
+  final double titleSize;
 
   const ScreenHeader({
     super.key,
@@ -102,6 +107,8 @@ class ScreenHeader extends StatelessWidget {
     required this.title,
     this.trailing,
     this.trailingOnTitleRow = false,
+    this.eyebrowSize = 30,
+    this.titleSize = 32,
   });
 
   @override
@@ -115,7 +122,7 @@ class ScreenHeader extends StatelessWidget {
         eyebrow,
         maxLines: 1,
         style: TextStyle(
-          fontSize: 30,
+          fontSize: eyebrowSize,
           fontWeight: FontWeight.w300,
           height: 1.1,
           color: p.mut,
@@ -124,7 +131,7 @@ class ScreenHeader extends StatelessWidget {
     );
 
     final titleStyle = TextStyle(
-      fontSize: 32,
+      fontSize: titleSize,
       fontWeight: FontWeight.w600,
       height: 1.1,
       letterSpacing: -0.3,

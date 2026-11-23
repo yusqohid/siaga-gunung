@@ -98,6 +98,8 @@ class HomeScreen extends ConsumerWidget {
     return ScreenHeader(
       eyebrow: 'Pantauan hari ini,',
       title: 'Gunung Api',
+      eyebrowSize: 26,
+      titleSize: 30,
       trailingOnTitleRow: true,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -484,9 +486,10 @@ class _LevelButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final ref = ProviderScope.containerOf(context, listen: false);
+    final softSurface = Color.lerp(p.card, p.bg, p.isDark ? 0.45 : 0.5)!;
 
     return Material(
-      color: p.bg,
+      color: softSurface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

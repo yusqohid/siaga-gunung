@@ -13,4 +13,8 @@ extension ActivityLevelTint on ActivityLevel {
   Color tintForeground(AppPalette palette) {
     return Color.lerp(color, palette.ink, palette.isDark ? 0.12 : 0.40)!;
   }
+
+  Color tintBorder(AppPalette palette) {
+    return color.withValues(alpha: palette.isDark ? 0.55 : 0.35);
+  }
 }
