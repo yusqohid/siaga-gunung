@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../core/theme/app_theme.dart';
 import '../../features/volcano/data/models/volcano_model.dart';
+import 'level_style.dart';
 
 class ActivityLevelBadge extends StatelessWidget {
   final ActivityLevel level;
@@ -15,26 +18,23 @@ class ActivityLevelBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 10,
-        vertical: compact ? 3 : 5,
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 4 : 6,
       ),
       decoration: BoxDecoration(
-        color: level.backgroundColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: level.color.withOpacity(0.3),
-          width: 1,
-        ),
+        color: level.tintBackground(p),
+        borderRadius: BorderRadius.circular(99),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (showDot) ...[
             Container(
-              width: 8,
-              height: 8,
+              width: 7,
+              height: 7,
               decoration: BoxDecoration(
                 color: level.color,
                 shape: BoxShape.circle,
@@ -43,11 +43,11 @@ class ActivityLevelBadge extends StatelessWidget {
             const SizedBox(width: 6),
           ],
           Text(
-            compact ? level.label : '${level.title} • ${level.label}',
+            compact ? level.label : '${level.title} · ${level.label}',
             style: TextStyle(
-              color: level.color,
+              color: level.tintForeground(p),
               fontSize: compact ? 11 : 12,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

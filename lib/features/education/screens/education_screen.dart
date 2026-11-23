@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../data/education_data.dart';
 
 class EducationScreen extends StatefulWidget {
@@ -11,321 +13,282 @@ class EducationScreen extends StatefulWidget {
 
 class _EducationScreenState extends State<EducationScreen> {
   String _selectedCategory = 'Semua';
-  String _searchQuery = '';
 
-  final List<String> _categories = [
-    'Semua',
-    'Tingkat Aktivitas',
-    'Panduan Evakuasi',
-    'Protokol Abu',
-    'Kesiapsiagaan',
-  ];
+  List<String> get _categories => [
+        'Semua',
+        ...{for (final topic in EducationData.topics) topic.category},
+      ];
 
   @override
   Widget build(BuildContext context) {
-    final filteredTopics = EducationData.topics.where((t) {
-      final matchesCategory =
-          _selectedCategory == 'Semua' || t.category == _selectedCategory;
-      final matchesSearch = _searchQuery.isEmpty ||
-          t.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          t.summary.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
+    final topics = EducationData.topics
+        .where((t) => _selectedCategory == 'Semua' || t.category == _selectedCategory)
+        .toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edukasi & Panduan Mitigasi'),
-      ),
-      body: Column(
-        children: [
-          // Header search & category selector
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Column(
-              children: [
-                TextField(
-                  onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                  decoration: InputDecoration(
-                    hintText: 'Cari modul atau pedoman keselamatan...',
-                    hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textSecondary),
-                    filled: true,
-                    fillColor: AppColors.surfaceVariant,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: ScreenHeader(
+                eyebrow: 'Edukasi &',
+                title: 'Panduan Mitigasi',
+              ),
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  for (var i = 0; i < _categories.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    PillChip(
+                      label: _categories[i],
+                      selected: _selectedCategory == _categories[i],
+                      onTap: () => setState(() => _selectedCategory = _categories[i]),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _categories.map((cat) {
-                      final isSelected = _selectedCategory == cat;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: ChoiceChip(
-                          label: Text(cat),
-                          selected: isSelected,
-                          onSelected: (_) => setState(() => _selectedCategory = cat),
-                          labelStyle: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isSelected ? Colors.white : AppColors.textSecondary,
-                          ),
-                          selectedColor: AppColors.primary,
-                          backgroundColor: AppColors.surfaceVariant,
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                          visualDensity: VisualDensity.compact,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: isSelected ? AppColors.primary : Colors.transparent,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
+                  ],
+                ],
+              ),
             ),
-          ),
-
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
-          // List of education topics
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: filteredTopics.length,
-              itemBuilder: (context, index) {
-                final topic = filteredTopics[index];
-                return _buildTopicCard(context, topic);
-              },
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+                itemCount: topics.length,
+                itemBuilder: (context, index) => _EducationCard(topic: topics[index]),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildTopicCard(BuildContext context, EducationTopic topic) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () => _showTopicDetailModal(context, topic),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      topic.category,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textSecondary,
+class _EducationCard extends StatelessWidget {
+  final EducationTopic topic;
+
+  const _EducationCard({required this.topic});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: p.card,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => _showTopicDetail(context, topic),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: p.bg,
+                        borderRadius: BorderRadius.circular(99),
                       ),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textMuted),
-                      const SizedBox(width: 4),
-                      Text(
-                        topic.readTimeMinutes,
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                topic.title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                topic.summary,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.verified_outlined, size: 14, color: AppColors.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        topic.officialSource,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Row(
-                    children: [
-                      Text(
-                        'Baca Modul',
+                      child: Text(
+                        topic.category,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                          color: p.ink,
                         ),
                       ),
-                      SizedBox(width: 2),
-                      Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
-                    ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.schedule_rounded, size: 14, color: p.mut),
+                        const SizedBox(width: 4),
+                        Caption(topic.readTimeMinutes),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  topic.title,
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
+                    color: p.ink,
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  topic.summary,
+                  style: TextStyle(fontSize: 14, height: 1.45, color: p.mut),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        topic.officialSource,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          letterSpacing: 0.4,
+                          color: p.mut,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'BACA',
+                      style: TextStyle(
+                        fontSize: 12,
+                        letterSpacing: 0.8,
+                        fontWeight: FontWeight.w600,
+                        color: p.ink,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  void _showTopicDetailModal(BuildContext context, EducationTopic topic) {
+  void _showTopicDetail(BuildContext context, EducationTopic topic) {
+    final p = context.palette;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.85,
+          initialChildSize: 0.88,
           minChildSize: 0.5,
-          maxChildSize: 0.95,
+          maxChildSize: 0.96,
           expand: false,
           builder: (context, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+            return Container(
+              decoration: BoxDecoration(
+                color: p.card,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
               child: ListView(
                 controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
                 children: [
-                  const SizedBox(height: 12),
                   Center(
                     child: Container(
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFCBD5E1),
+                        color: p.line,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryContainer,
-                          borderRadius: BorderRadius.circular(6),
+                          color: p.bg,
+                          borderRadius: BorderRadius.circular(99),
                         ),
                         child: Text(
                           topic.category,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
+                          style: TextStyle(fontSize: 11, color: p.ink),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Waktu baca: ${topic.readTimeMinutes}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                      ),
+                      const SizedBox(width: 10),
+                      Caption('Waktu baca: ${topic.readTimeMinutes}'),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
                     topic.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                      color: p.ink,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(8),
+                      color: p.bg,
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.verified_user_rounded, size: 16, color: AppColors.primary),
+                        Icon(Icons.verified_user_rounded, size: 16, color: p.ink),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Sumber Resmi: ${topic.officialSource}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                            'Sumber resmi: ${topic.officialSource}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: p.ink,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Poin Penting:',
+                  const SizedBox(height: 20),
+                  Text(
+                    'Poin penting',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: p.ink,
                     ),
                   ),
                   const SizedBox(height: 8),
                   ...topic.bulletPoints.map(
                     (point) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Container(
+                              width: 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: p.amb,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               point,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textPrimary,
-                                height: 1.4,
+                              style: TextStyle(
+                                fontSize: 14,
+                                height: 1.45,
+                                color: p.ink,
                               ),
                             ),
                           ),
@@ -334,26 +297,25 @@ class _EducationScreenState extends State<EducationScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Divider(color: Color(0xFFE2E8F0)),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Pedoman Lengkap:',
+                  Divider(color: p.line),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Pedoman lengkap',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: p.ink,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     topic.fullContent,
-                    style: const TextStyle(
-                      fontSize: 13,
+                    style: TextStyle(
+                      fontSize: 14,
                       height: 1.6,
-                      color: AppColors.textPrimary,
+                      color: p.ink,
                     ),
                   ),
-                  const SizedBox(height: 32),
                 ],
               ),
             );

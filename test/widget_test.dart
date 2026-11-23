@@ -11,6 +11,7 @@ import 'package:siaga_gunung/features/map/data/volcano_coordinates.dart';
 import 'package:siaga_gunung/features/map/services/location_service.dart';
 import 'package:siaga_gunung/features/education/data/education_data.dart';
 import 'package:siaga_gunung/features/checklist/data/checklist_data.dart';
+import 'package:siaga_gunung/shared/widgets/nav_icon.dart';
 
 void main() {
   setUpAll(() async {
@@ -22,14 +23,17 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: SiagaGunungApp()));
     await tester.pumpAndSettle();
 
-    // Verify app bar title
-    expect(find.text('SiagaGunung'), findsOneWidget);
-    // Verify navigation tabs
-    expect(find.text('Beranda'), findsOneWidget);
-    expect(find.text('Peta'), findsOneWidget);
-    expect(find.text('Gunung'), findsOneWidget);
-    expect(find.text('Edukasi'), findsOneWidget);
-    expect(find.text('Checklist'), findsOneWidget);
+    // Verify home header is rendered
+    expect(find.text('Gunung Api'), findsOneWidget);
+    expect(find.text('Pantauan hari ini,'), findsOneWidget);
+
+    // Verify bottom navigation: selected item shows its label, others are icons
+    expect(find.text('BERANDA'), findsOneWidget);
+    expect(find.byType(NavGlyphIcon), findsNWidgets(5));
+    expect(find.byTooltip('Peta'), findsOneWidget);
+    expect(find.byTooltip('Gunung'), findsOneWidget);
+    expect(find.byTooltip('Edukasi'), findsOneWidget);
+    expect(find.byTooltip('Checklist'), findsOneWidget);
   });
 
   test('ActivityLevel enum sorting, labels, and unknown level rejection test', () {

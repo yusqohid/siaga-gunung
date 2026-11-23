@@ -28,23 +28,27 @@ class StatusAlert {
 
 class StatusAlertNotifier extends StateNotifier<List<StatusAlert>> {
   final Ref _ref;
-  bool _initialized = false;
+  bool _isChecking = false;
 
   StatusAlertNotifier(this._ref) : super(const []) {
-    _initAndCheckAlerts();
-  }
-
-  Future<void> _initAndCheckAlerts() async {
-    if (_initialized) return;
-    _initialized = true;
-
-    final listAsync = _ref.watch(volcanoListProvider);
-    listAsync.whenData((response) async {
-      await _checkLevelChanges(response.volcanoes);
-    });
+    // Pantau perubahan daftar gunung secara berkelanjutan. Sebelumnya
+    // pengecekan hanya dijalankan sekali saat data masih loading sehingga
+    // alert tidak pernah muncul.
+    _ref.listen<AsyncValue<VolcanoListResponse>>(
+      volcanoListProvider,
+      (previous, next) {
+        next.whenData((response) async {
+          await _checkLevelChanges(response.volcanoes);
+        });
+      },
+      fireImmediately: true,
+    );
   }
 
   Future<void> _checkLevelChanges(List<VolcanoSummary> volcanoes) async {
+    // Hindari pengecekan bertumpuk saat refresh beruntun.
+    if (_isChecking) return;
+    _isChecking = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       final previousJson = prefs.getString(_kPreviousLevelsPrefKey);
@@ -88,7 +92,11 @@ class StatusAlertNotifier extends StateNotifier<List<StatusAlert>> {
       await prefs.setString(_kPreviousLevelsPrefKey, jsonEncode(currentMap));
 
       state = newAlerts;
-    } catch (_) {}
+    } catch (_) {
+      // Abaikan kegagalan storage; alert bersifat opsional.
+    } finally {
+      _isChecking = false;
+    }
   }
 
   Future<void> dismissAlert(String volcanoId, ActivityLevel currentLevel) async {
