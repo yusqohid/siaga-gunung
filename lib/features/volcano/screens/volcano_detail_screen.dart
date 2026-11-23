@@ -134,7 +134,27 @@ class _VolcanoDetailScreenState extends ConsumerState<VolcanoDetailScreen> {
                       const SizedBox(height: 22),
                       _buildTabs(context),
                       const SizedBox(height: 2),
-                      _buildTabBody(context, response),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.02),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: KeyedSubtree(
+                          key: ValueKey(_tab),
+                          child: _buildTabBody(context, response),
+                        ),
+                      ),
                       const SizedBox(height: 18),
                       Caption(
                         'Laporan ${volcano.reportPeriod ?? 'terbaru'} · diambil ${DateFormatter.formatRelativeTime(volcano.fetchedAt)}'
