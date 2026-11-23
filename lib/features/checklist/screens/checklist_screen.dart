@@ -103,9 +103,16 @@ class ChecklistScreen extends ConsumerWidget {
                 child: Stack(
                   children: [
                     Container(color: p.line),
-                    FractionallySizedBox(
-                      widthFactor: progress.percentage,
-                      child: Container(color: p.amb),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween<double>(begin: 0, end: progress.percentage),
+                      duration: const Duration(milliseconds: 450),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) {
+                        return FractionallySizedBox(
+                          widthFactor: value,
+                          child: Container(color: p.amb),
+                        );
+                      },
                     ),
                   ],
                 ),
