@@ -104,13 +104,25 @@ class HomeScreen extends ConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          RoundIconButton(
-            icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            size: 42,
-            tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
-            onPressed: () => ref
-                .read(themeModeProvider.notifier)
-                .toggle(Theme.of(context).brightness),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) {
+              return RotationTransition(
+                turns: Tween<double>(begin: 0.75, end: 1).animate(animation),
+                child: FadeTransition(opacity: animation, child: child),
+              );
+            },
+            child: RoundIconButton(
+              key: ValueKey('theme-${isDark ? 'dark' : 'light'}'),
+              icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              size: 42,
+              tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+              onPressed: () => ref
+                  .read(themeModeProvider.notifier)
+                  .toggle(Theme.of(context).brightness),
+            ),
           ),
           const SizedBox(width: 8),
           RoundIconButton(
