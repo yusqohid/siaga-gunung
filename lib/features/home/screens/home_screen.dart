@@ -181,15 +181,22 @@ class HomeScreen extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '$topCount',
-                style: TextStyle(
-                  fontSize: 150,
-                  fontWeight: FontWeight.w200,
-                  height: 0.9,
-                  letterSpacing: -7,
-                  color: p.ink,
-                ),
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: topCount.toDouble()),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) {
+                  return Text(
+                    '${value.round()}',
+                    style: TextStyle(
+                      fontSize: 150,
+                      fontWeight: FontWeight.w200,
+                      height: 0.9,
+                      letterSpacing: -7,
+                      color: p.ink,
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 10),
               Padding(
