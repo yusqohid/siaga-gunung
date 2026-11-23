@@ -292,7 +292,7 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final borderRadius = radius ?? BorderRadius.circular(24);
-    final content = Container(
+    Widget content = Container(
       padding: padding,
       decoration: BoxDecoration(
         color: color ?? p.card,
@@ -301,16 +301,22 @@ class AppCard extends StatelessWidget {
       child: child,
     );
 
-    if (onTap == null) return content;
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: borderRadius,
-      child: InkWell(
-        onTap: onTap,
+    if (onTap != null) {
+      content = Material(
+        color: Colors.transparent,
         borderRadius: borderRadius,
-        child: content,
-      ),
-    );
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: borderRadius,
+          child: content,
+        ),
+      );
+    }
+
+    if (margin != null) {
+      content = Padding(padding: margin!, child: content);
+    }
+
+    return content;
   }
 }
