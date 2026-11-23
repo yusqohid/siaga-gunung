@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -12,6 +11,7 @@ import 'package:siaga_gunung/features/map/data/volcano_coordinates.dart';
 import 'package:siaga_gunung/features/map/services/location_service.dart';
 import 'package:siaga_gunung/features/education/data/education_data.dart';
 import 'package:siaga_gunung/features/checklist/data/checklist_data.dart';
+import 'package:siaga_gunung/shared/widgets/nav_icon.dart';
 
 void main() {
   setUpAll(() async {
@@ -29,10 +29,11 @@ void main() {
 
     // Verify bottom navigation: selected item shows its label, others are icons
     expect(find.text('BERANDA'), findsOneWidget);
-    expect(find.byIcon(Icons.map_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.volcano_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.checklist_outlined), findsOneWidget);
+    expect(find.byType(NavGlyphIcon), findsNWidgets(5));
+    expect(find.byTooltip('Peta'), findsOneWidget);
+    expect(find.byTooltip('Gunung'), findsOneWidget);
+    expect(find.byTooltip('Edukasi'), findsOneWidget);
+    expect(find.byTooltip('Checklist'), findsOneWidget);
   });
 
   test('ActivityLevel enum sorting, labels, and unknown level rejection test', () {

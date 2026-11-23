@@ -2,22 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/nav_icon.dart';
 
 class _NavDestination {
   final String path;
   final String label;
-  final IconData icon;
-  final IconData selectedIcon;
+  final NavGlyph glyph;
 
-  const _NavDestination(this.path, this.label, this.icon, this.selectedIcon);
+  const _NavDestination(this.path, this.label, this.glyph);
 }
 
 const List<_NavDestination> _destinations = [
-  _NavDestination('/','Beranda', Icons.home_outlined, Icons.home_rounded),
-  _NavDestination('/map','Peta', Icons.map_outlined, Icons.map_rounded),
-  _NavDestination('/volcanoes','Gunung', Icons.volcano_outlined, Icons.volcano_rounded),
-  _NavDestination('/education','Edukasi', Icons.menu_book_outlined, Icons.menu_book_rounded),
-  _NavDestination('/checklist','Checklist', Icons.checklist_outlined, Icons.checklist_rounded),
+  _NavDestination('/', 'Beranda', NavGlyph.home),
+  _NavDestination('/map', 'Peta', NavGlyph.map),
+  _NavDestination('/volcanoes', 'Gunung', NavGlyph.volcano),
+  _NavDestination('/education', 'Edukasi', NavGlyph.book),
+  _NavDestination('/checklist', 'Checklist', NavGlyph.checklist),
 ];
 
 class AppShell extends StatelessWidget {
@@ -110,8 +110,8 @@ class _NavItem extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  selected ? destination.selectedIcon : destination.icon,
+                NavGlyphIcon(
+                  glyph: destination.glyph,
                   size: 22,
                   color: selected ? AppColors.inkOnAmber : inactive,
                 ),
