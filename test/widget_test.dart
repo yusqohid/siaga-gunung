@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -22,14 +23,16 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: SiagaGunungApp()));
     await tester.pumpAndSettle();
 
-    // Verify app bar title
-    expect(find.text('SiagaGunung'), findsOneWidget);
-    // Verify navigation tabs
-    expect(find.text('Beranda'), findsOneWidget);
-    expect(find.text('Peta'), findsOneWidget);
-    expect(find.text('Gunung'), findsOneWidget);
-    expect(find.text('Edukasi'), findsOneWidget);
-    expect(find.text('Checklist'), findsOneWidget);
+    // Verify home header is rendered
+    expect(find.text('Gunung Api'), findsOneWidget);
+    expect(find.text('Pantauan hari ini,'), findsOneWidget);
+
+    // Verify bottom navigation: selected item shows its label, others are icons
+    expect(find.text('BERANDA'), findsOneWidget);
+    expect(find.byIcon(Icons.map_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.volcano_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.checklist_outlined), findsOneWidget);
   });
 
   test('ActivityLevel enum sorting, labels, and unknown level rejection test', () {

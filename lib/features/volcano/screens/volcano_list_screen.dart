@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/activity_level_badge.dart';
-import '../../../shared/widgets/data_freshness_badge.dart';
 import '../../../shared/widgets/error_view.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../data/models/volcano_model.dart';
 import '../providers/volcano_providers.dart';
 
@@ -17,7 +16,15 @@ class VolcanoListScreen extends ConsumerStatefulWidget {
 }
 
 class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
-  final TextEditingController _searchController = TextEditingController();
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: ref.read(volcanoSearchQueryProvider),
+    );
+  }
 
   @override
   void dispose() {
@@ -30,532 +37,283 @@ class _VolcanoListScreenState extends ConsumerState<VolcanoListScreen> {
     final listAsync = ref.watch(volcanoListProvider);
     final selectedLevel = ref.watch(volcanoLevelFilterProvider);
     final selectedRegion = ref.watch(volcanoRegionFilterProvider);
-    final showOnlyFavorites = ref.watch(showOnlyFavoritesFilterProvider);
-    final favoriteIds = ref.watch(favoriteVolcanoesProvider);
-    final searchQuery = ref.watch(volcanoSearchQueryProvider);
-
-    final isAnyFilterActive = searchQuery.isNotEmpty ||
-        selectedLevel != null ||
-        selectedRegion != VolcanoRegion.all ||
-        showOnlyFavorites;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Status Aktivitas Gunung'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.map_rounded),
-            tooltip: 'Buka Peta Sebaran',
-            onPressed: () => context.go('/map'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Segarkan Data',
-            onPressed: () => ref.read(volcanoListProvider.notifier).refresh(),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Search & Filter header
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Search bar
-                TextField(
-                  controller: _searchController,
-                  onChanged: (val) {
-                    ref.read(volcanoSearchQueryProvider.notifier).state = val;
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Cari nama gunung, lokasi, pulau...',
-                    hintStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textSecondary),
-                    suffixIcon: searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear_rounded, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              ref.read(volcanoSearchQueryProvider.notifier).state = '';
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: AppColors.surfaceVariant,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: ScreenHeader(
+                eyebrow: 'Status aktivitas',
+                title: 'Daftar Gunung',
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: _SearchField(
+                controller: _searchController,
+                onChanged: (value) {
+                  ref.read(volcanoSearchQueryProvider.notifier).state = value;
+                },
+                onClear: () {
+                  _searchController.clear();
+                  ref.read(volcanoSearchQueryProvider.notifier).state = '';
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ChipRow(
+              children: VolcanoRegion.values
+                  .map(
+                    (region) => PillChip(
+                      label: region.label,
+                      selected: selectedRegion == region,
+                      onTap: () {
+                        ref.read(volcanoRegionFilterProvider.notifier).state = region;
+                      },
                     ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 8),
+            _ChipRow(
+              children: [
+                PillChip(
+                  label: 'Semua',
+                  selected: selectedLevel == null,
+                  onTap: () {
+                    ref.read(volcanoLevelFilterProvider.notifier).state = null;
+                  },
+                ),
+                ...ActivityLevel.values.map(
+                  (level) => PillChip(
+                    label: '${level.code} ${level.label}',
+                    selected: selectedLevel == level,
+                    onTap: () {
+                      ref.read(volcanoLevelFilterProvider.notifier).state = level;
+                    },
                   ),
                 ),
-                const SizedBox(height: 8),
-
-                // Filter row 1: Wilayah / Kepulauan
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      ...VolcanoRegion.values.map(
-                        (region) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: _buildFilterChip(
-                            label: region.label,
-                            isSelected: selectedRegion == region,
-                            color: AppColors.primary,
-                            onSelected: () {
-                              ref.read(volcanoRegionFilterProvider.notifier).state = region;
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-                // Filter row 2: Status Level & Favorit
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      // ⭐ Favorit filter chip
-                      _buildFilterChip(
-                        label: '⭐ Favorit (${favoriteIds.length})',
-                        isSelected: showOnlyFavorites,
-                        color: Colors.amber.shade800,
-                        onSelected: () {
-                          ref.read(showOnlyFavoritesFilterProvider.notifier).state =
-                              !showOnlyFavorites;
-                        },
-                      ),
-                      const SizedBox(width: 6),
-                      _buildFilterChip(
-                        label: 'Semua Status',
-                        isSelected: selectedLevel == null,
-                        onSelected: () {
-                          ref.read(volcanoLevelFilterProvider.notifier).state = null;
-                        },
-                      ),
-                      const SizedBox(width: 6),
-                      ...ActivityLevel.values.map(
-                        (level) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: _buildFilterChip(
-                            label: '${level.title} (${level.label})',
-                            isSelected: selectedLevel == level,
-                            color: level.color,
-                            onSelected: () {
-                              ref.read(volcanoLevelFilterProvider.notifier).state =
-                                  selectedLevel == level ? null : level;
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Reset filter action if active
-                if (isAnyFilterActive) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      GestureDetector(
-                        onTap: _resetAllFilters,
-                        child: const Row(
-                          children: [
-                            Icon(Icons.filter_alt_off_rounded, size: 14, color: AppColors.primary),
-                            SizedBox(width: 4),
-                            Text(
-                              'Reset Filter',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ],
             ),
-          ),
-
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
-          // Body content
-          Expanded(
-            child: listAsync.when(
-              loading: () => const LoadingView(message: 'Memuat daftar gunung...'),
-              error: (err, _) => ErrorView(
-                title: 'Gagal Memuat Data',
-                message: err.toString().replaceFirst('Exception: ', ''),
-                onRetry: () => ref.read(volcanoListProvider.notifier).refresh(),
+            const SizedBox(height: 8),
+            Expanded(
+              child: listAsync.when(
+                loading: () => const LoadingView(message: 'Memuat daftar gunung...'),
+                error: (err, _) => ErrorView(
+                  title: 'Gagal Memuat Data',
+                  message: err.toString().replaceFirst('Exception: ', ''),
+                  onRetry: () => ref.read(volcanoListProvider.notifier).refresh(),
+                ),
+                data: (response) => _buildList(context, response),
               ),
-              data: (response) => _buildVolcanoList(context, response),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _resetAllFilters() {
-    _searchController.clear();
-    ref.read(volcanoSearchQueryProvider.notifier).state = '';
-    ref.read(volcanoLevelFilterProvider.notifier).state = null;
-    ref.read(volcanoRegionFilterProvider.notifier).state = VolcanoRegion.all;
-    ref.read(showOnlyFavoritesFilterProvider.notifier).state = false;
-  }
-
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    Color? color,
-    required VoidCallback onSelected,
-  }) {
-    final chipColor = color ?? AppColors.primary;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => onSelected(),
-      labelStyle: TextStyle(
-        fontSize: 11,
-        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-        color: isSelected ? Colors.white : AppColors.textSecondary,
-      ),
-      selectedColor: chipColor,
-      backgroundColor: AppColors.surfaceVariant,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-      visualDensity: VisualDensity.compact,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isSelected ? chipColor : Colors.transparent,
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildVolcanoList(BuildContext context, VolcanoListResponse response) {
+  Widget _buildList(BuildContext context, VolcanoListResponse response) {
     final searchQuery = ref.watch(volcanoSearchQueryProvider).trim().toLowerCase();
     final selectedLevel = ref.watch(volcanoLevelFilterProvider);
     final selectedRegion = ref.watch(volcanoRegionFilterProvider);
     final showOnlyFavorites = ref.watch(showOnlyFavoritesFilterProvider);
     final favoriteIds = ref.watch(favoriteVolcanoesProvider);
 
-    // Apply client filters
     final filtered = response.volcanoes.where((v) {
-      if (showOnlyFavorites && !favoriteIds.contains(v.id)) {
-        return false;
-      }
-      if (selectedLevel != null && v.activityLevel != selectedLevel) {
-        return false;
-      }
-      if (selectedRegion != VolcanoRegion.all && v.region != selectedRegion) {
-        return false;
-      }
+      if (showOnlyFavorites && !favoriteIds.contains(v.id)) return false;
+      if (selectedLevel != null && v.activityLevel != selectedLevel) return false;
+      if (selectedRegion != VolcanoRegion.all && v.region != selectedRegion) return false;
       if (searchQuery.isNotEmpty) {
-        final matchesSearch = v.name.toLowerCase().contains(searchQuery) ||
+        final matches = v.name.toLowerCase().contains(searchQuery) ||
             (v.location != null && v.location!.toLowerCase().contains(searchQuery)) ||
             v.region.label.toLowerCase().contains(searchQuery);
-        if (!matchesSearch) return false;
+        if (!matches) return false;
       }
       return true;
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        final byLevel = a.activityLevel.sortOrder.compareTo(b.activityLevel.sortOrder);
+        return byLevel != 0 ? byLevel : a.name.compareTo(b.name);
+      });
 
     if (filtered.isEmpty) {
       return EmptyStateView(
         title: 'Gunung Tidak Ditemukan',
         message: 'Tidak ada hasil untuk filter dan kata kunci saat ini.',
         action: OutlinedButton.icon(
-          icon: const Icon(Icons.refresh_rounded, size: 16),
-          onPressed: _resetAllFilters,
-          label: const Text('Reset Semua Filter'),
+          icon: const Icon(Icons.filter_alt_off_rounded, size: 16),
+          onPressed: _resetFilters,
+          label: const Text('Reset Filter'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: context.palette.ink,
+            side: BorderSide(color: context.palette.line),
+          ),
         ),
       );
     }
 
-    // If a specific level is filtered, region filtered, or searching, show flat list
-    final isFiltering = selectedLevel != null ||
-        searchQuery.isNotEmpty ||
-        selectedRegion != VolcanoRegion.all ||
-        showOnlyFavorites;
-
-    return RefreshIndicator(
-      onRefresh: () => ref.read(volcanoListProvider.notifier).refresh(),
-      child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        children: [
-          // Metadata status
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              DataFreshnessBadge(
-                fetchedAt: response.fetchedAt,
-                isStale: response.isStale,
-                warningMessage: response.warningMessage,
-              ),
-              Text(
-                'Menampilkan ${filtered.length} dari ${response.totalCount}',
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (isFiltering) ...[
-            // Flat list when searching or filtering
-            ...filtered.map((v) => _buildVolcanoCard(context, v)),
-          ] else ...[
-            // Grouped by level: Level IV, III, II, I (PRD Section 9.2 & AC-03)
-            // Empty levels must be displayed with count 0 and empty state
-            ...ActivityLevel.values.map((level) {
-              final levelVolcanoes = response.volcanoes
-                  .where((v) => v.activityLevel == level)
-                  .toList();
-              return _buildLevelGroupSection(context, level, levelVolcanoes);
-            }),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLevelGroupSection(
-    BuildContext context,
-    ActivityLevel level,
-    List<VolcanoSummary> volcanoes,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
       children: [
-        // Level Group Header
-        Container(
-          margin: const EdgeInsets.only(top: 8, bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: level.backgroundColor,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: level.color.withOpacity(0.3)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: level.color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${level.title} (${level.label})',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: level.color,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '${volcanoes.length} Gunung',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: level.color,
-                ),
-              ),
-            ],
-          ),
+        Caption(
+          'Menampilkan ${filtered.length} dari ${response.totalCount}'.toUpperCase(),
         ),
-
-        // Group Content: Empty state or List of volcanoes
-        if (volcanoes.isEmpty)
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline_rounded, size: 16, color: AppColors.textMuted),
-                const SizedBox(width: 8),
-                Text(
-                  'Tidak ada gunung api pada ${level.title} (${level.label}) saat ini.',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          ...volcanoes.map((v) => _buildVolcanoCard(context, v)),
+        const SizedBox(height: 10),
+        ...filtered.map((volcano) => _VolcanoRow(volcano: volcano)),
       ],
     );
   }
 
-  Widget _buildVolcanoCard(BuildContext context, VolcanoSummary volcano) {
-    final favorites = ref.watch(favoriteVolcanoesProvider);
-    final isFav = favorites.contains(volcano.id);
+  void _resetFilters() {
+    _searchController.clear();
+    ref.read(volcanoSearchQueryProvider.notifier).state = '';
+    ref.read(volcanoLevelFilterProvider.notifier).state = null;
+    ref.read(volcanoRegionFilterProvider.notifier).state = VolcanoRegion.all;
+    ref.read(showOnlyFavoritesFilterProvider.notifier).state = false;
+  }
+}
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: () => context.push('/volcanoes/${volcano.id}'),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-          child: Row(
-            children: [
-              // Level indicator badge
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: volcano.activityLevel.backgroundColor,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: volcano.activityLevel.color.withOpacity(0.4),
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  volcano.activityLevel.code,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: volcano.activityLevel.color,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+class _ChipRow extends StatelessWidget {
+  final List<Widget> children;
 
-              // Name, region, and location
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            volcano.name,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isFav) ...[
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.star_rounded,
-                            size: 14,
-                            color: Colors.amber,
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            volcano.region.label,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            volcano.location ?? 'Lokasi tidak disebutkan',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
+  const _ChipRow({required this.children});
 
-              // Status tag
-              ActivityLevelBadge(
-                level: volcano.activityLevel,
-                compact: true,
-                showDot: false,
-              ),
-
-              // Star favorite toggle button
-              IconButton(
-                icon: Icon(
-                  isFav ? Icons.star_rounded : Icons.star_outline_rounded,
-                  color: isFav ? Colors.amber.shade700 : AppColors.textMuted,
-                  size: 22,
-                ),
-                tooltip: isFav ? 'Hapus dari Pantauan' : 'Sematkan ke Pantauan (Beranda)',
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                onPressed: () {
-                  ref.read(favoriteVolcanoesProvider.notifier).toggleFavorite(volcano.id);
-                  ScaffoldMessenger.of(context).clearSnackBars();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isFav
-                            ? '${volcano.name} dihapus dari Gunung Pantauan.'
-                            : '${volcano.name} disematkan ke Gunung Pantauan di Beranda.',
-                      ),
-                      duration: const Duration(seconds: 2),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-              ),
-
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: AppColors.textMuted,
-              ),
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              children[i],
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, size: 20, color: p.mut),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              style: TextStyle(fontSize: 14, color: p.ink),
+              cursorColor: p.ink,
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                hintText: 'Cari gunung, provinsi, pulau',
+                hintStyle: TextStyle(fontSize: 14, color: p.mut),
+              ),
+            ),
+          ),
+          if (controller.text.isNotEmpty)
+            GestureDetector(
+              onTap: onClear,
+              child: Icon(Icons.close_rounded, size: 18, color: p.mut),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VolcanoRow extends ConsumerWidget {
+  final VolcanoSummary volcano;
+
+  const _VolcanoRow({required this.volcano});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = context.palette;
+    final isFav = ref.watch(favoriteVolcanoesProvider).contains(volcano.id);
+    final subtitle = volcano.location?.trim().isNotEmpty == true
+        ? volcano.location!
+        : volcano.region.label;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: p.card,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => context.push('/volcanoes/${volcano.id}'),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+            child: Row(
+              children: [
+                LevelMark(level: volcano.activityLevel, size: 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        volcano.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w500,
+                          color: p.ink,
+                        ),
+                      ),
+                      Text(
+                        '${volcano.activityLevel.label} · $subtitle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: p.mut),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: isFav ? 'Hapus dari Pantauan' : 'Pantau',
+                  onPressed: () => ref
+                      .read(favoriteVolcanoesProvider.notifier)
+                      .toggleFavorite(volcano.id),
+                  icon: Icon(
+                    isFav ? Icons.star_rounded : Icons.star_border_rounded,
+                    size: 22,
+                    color: isFav ? p.amb : p.mut,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

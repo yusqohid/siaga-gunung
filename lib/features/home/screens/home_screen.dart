@@ -4,13 +4,25 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/activity_level_badge.dart';
-import '../../../shared/widgets/data_freshness_badge.dart';
+import '../../../core/theme/theme_mode_provider.dart';
+import '../../../core/utils/date_formatter.dart';
 import '../../../shared/widgets/error_view.dart';
-import '../../volcano/data/models/volcano_model.dart';
-import '../../volcano/providers/volcano_providers.dart';
-import '../../volcano/providers/status_alert_provider.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../../map/services/location_service.dart';
+import '../../volcano/data/models/volcano_model.dart';
+import '../../volcano/providers/status_alert_provider.dart';
+import '../../volcano/providers/volcano_providers.dart';
+
+const Map<ActivityLevel, String> _levelRecommendations = {
+  ActivityLevel.levelIV:
+      'Ikuti arahan evakuasi BPBD setempat dan segera tinggalkan zona bahaya. Jangan memasuki radius larangan yang ditetapkan PVMBG.',
+  ActivityLevel.levelIII:
+      'Dilarang beraktivitas di dalam radius yang ditetapkan PVMBG dari pusat erupsi. Waspadai lontaran batu pijar, hujan abu lebat, dan potensi lahar.',
+  ActivityLevel.levelII:
+      'Pendaki dan wisatawan dilarang mendekati kawah dalam radius aman. Siapkan masker dan tas siaga di rumah.',
+  ActivityLevel.levelI:
+      'Aktivitas normal; tetap ikuti rambu di kawasan gunung dan pantau perubahan status melalui kanal resmi.',
+};
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -20,64 +32,87 @@ class HomeScreen extends ConsumerWidget {
     final listAsync = ref.watch(volcanoListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.volcano_rounded,
-                color: Colors.white,
-                size: 20,
+      body: SafeArea(
+        bottom: false,
+        child: listAsync.when(
+          loading: () => _buildFrame(
+            context,
+            ref,
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 80),
+              child: LoadingView(message: 'Mengambil status gunung terkini...'),
+            ),
+          ),
+          error: (err, _) => _buildFrame(
+            context,
+            ref,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: ErrorView(
+                title: 'Gagal Memuat Data',
+                message: err.toString().replaceFirst('Exception: ', ''),
+                onRetry: () => ref.read(volcanoListProvider.notifier).refresh(),
               ),
             ),
-            const SizedBox(width: 10),
-            const Text('SiagaGunung'),
-          ],
+          ),
+          data: (response) => _buildContent(context, ref, response),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded),
+      ),
+    );
+  }
+
+  /// Header shown for loading / error states too.
+  Widget _buildFrame(BuildContext context, WidgetRef ref, Widget child) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      children: [
+        _buildHeader(context, ref),
+        const SizedBox(height: 8),
+        child,
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ScreenHeader(
+      eyebrow: 'Pantauan hari ini,',
+      title: 'Gunung Api',
+      trailingOnTitleRow: true,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RoundIconButton(
+            icon: isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            size: 42,
+            tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+            onPressed: () => ref
+                .read(themeModeProvider.notifier)
+                .toggle(Theme.of(context).brightness),
+          ),
+          const SizedBox(width: 8),
+          RoundIconButton(
+            icon: Icons.sync_rounded,
+            accent: true,
+            size: 42,
+            tooltip: 'Segarkan Data',
+            onPressed: () {
+              ref.read(volcanoListProvider.notifier).refresh();
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Data PVMBG diperbarui.')),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          RoundIconButton(
+            icon: Icons.info_outline_rounded,
+            size: 42,
             tooltip: 'Tentang Aplikasi',
             onPressed: () => context.push('/about'),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Segarkan Data',
-            onPressed: () => ref.read(volcanoListProvider.notifier).refresh(),
-          ),
         ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(volcanoListProvider.notifier).refresh(),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              listAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: LoadingView(message: 'Mengambil status gunung terkini...'),
-                ),
-                error: (err, _) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: ErrorView(
-                    title: 'Gagal Memuat Data',
-                    message: err.toString().replaceFirst('Exception: ', ''),
-                    onRetry: () => ref.read(volcanoListProvider.notifier).refresh(),
-                  ),
-                ),
-                data: (response) => _buildContent(context, ref, response),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -87,742 +122,619 @@ class HomeScreen extends ConsumerWidget {
     WidgetRef ref,
     VolcanoListResponse response,
   ) {
-    // Highest level volcanoes (Level IV or Level III)
-    final highRisk = response.volcanoes
-        .where((v) =>
-            v.activityLevel == ActivityLevel.levelIV ||
-            v.activityLevel == ActivityLevel.levelIII)
-        .toList();
-
+    final p = context.palette;
+    final counts = response.byLevel;
     final favorites = ref.watch(favoriteVolcanoesListProvider);
     final alerts = ref.watch(statusAlertProvider);
-    final userLocationState = ref.watch(userLocationProvider);
+    final locationState = ref.watch(userLocationProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final topLevel = ActivityLevel.values.firstWhere(
+      (level) => (counts[level.code] ?? 0) > 0,
+      orElse: () => ActivityLevel.levelI,
+    );
+    final topCount = counts[topLevel.code] ?? 0;
+
+    final priority = _pickPriorityVolcano(response.volcanoes);
+    final relative = DateFormatter.formatRelativeTime(response.fetchedAt);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
       children: [
-        // Freshness status bar
+        _buildHeader(context, ref),
+
+        // Hero: big count + level label
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.only(top: 18, bottom: 12),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DataFreshnessBadge(
-                fetchedAt: response.fetchedAt,
-                isStale: response.isStale,
-                warningMessage: response.warningMessage,
-              ),
               Text(
-                'Total ${response.totalCount} Gunung',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Active Status Change Alerts (Escalations)
-        if (alerts.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: alerts
-                  .map((alert) => _buildStatusAlertBanner(context, ref, alert))
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-
-        // High priority alert card if any
-        if (highRisk.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildPriorityAlertCard(context, highRisk.first),
-          ),
-          const SizedBox(height: 16),
-        ],
-
-        // Nearby Volcano detection card
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _buildNearbyVolcanoCard(context, ref, userLocationState),
-        ),
-        const SizedBox(height: 16),
-
-        // Gunung Pantauan Anda (Favorit)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _buildFavoriteSection(context, ref, favorites),
-        ),
-        const SizedBox(height: 20),
-
-        // Summary counts by level (Level IV, III, II, I)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Ringkasan Status Aktivitas',
+                '$topCount',
                 style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  fontSize: 150,
+                  fontWeight: FontWeight.w200,
+                  height: 0.9,
+                  letterSpacing: -7,
+                  color: p.ink,
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      ref,
-                      ActivityLevel.levelIV,
-                      response.byLevel['IV'] ?? 0,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      ref,
-                      ActivityLevel.levelIII,
-                      response.byLevel['III'] ?? 0,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      ref,
-                      ActivityLevel.levelII,
-                      response.byLevel['II'] ?? 0,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      ref,
-                      ActivityLevel.levelI,
-                      response.byLevel['I'] ?? 0,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Quick navigation shortcuts
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Akses Cepat',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _buildActionTile(
-                icon: Icons.map_rounded,
-                iconColor: Colors.teal.shade700,
-                title: 'Peta Interaktif Sebaran Gunung',
-                subtitle: 'Visualisasi posisi geografis & status 69 gunung api se-Indonesia',
-                onTap: () => context.go('/map'),
-              ),
-              const SizedBox(height: 8),
-              _buildActionTile(
-                icon: Icons.format_list_bulleted_rounded,
-                iconColor: AppColors.primary,
-                title: 'Daftar Semua Gunung Api',
-                subtitle: 'Pantau status, lokasi, dan detail laporan resmi',
-                onTap: () => context.go('/volcanoes'),
-              ),
-              const SizedBox(height: 8),
-              _buildActionTile(
-                icon: Icons.menu_book_rounded,
-                iconColor: AppColors.levelIII,
-                title: 'Modul Edukasi & Panduan Mitigasi',
-                subtitle: 'Protokol hujan abu, panduan evakuasi, dan TSB 72 jam',
-                onTap: () => context.go('/education'),
-              ),
-              const SizedBox(height: 8),
-              _buildActionTile(
-                icon: Icons.checklist_rounded,
-                iconColor: AppColors.levelI,
-                title: 'Checklist Tas Siaga Bencana',
-                subtitle: 'Simpan daftar perlengkapan penting secara lokal',
-                onTap: () => context.go('/checklist'),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Emergency hotlines
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
+              const SizedBox(width: 10),
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.phone_in_talk_rounded, size: 20, color: AppColors.primary),
-                    SizedBox(width: 8),
                     Text(
-                      'Kontak Darurat Nasional (Bebas Pulsa)',
+                      'GUNUNG',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: p.ink,
+                      ),
+                    ),
+                    Text(
+                      'STATUS ${topLevel.label.toUpperCase()}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        letterSpacing: 1,
+                        fontWeight: FontWeight.w500,
+                        color: p.mut,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildHotlineItem('BNPB', '117'),
-                    _buildHotlineDivider(),
-                    _buildHotlineItem('Basarnas', '115'),
-                    _buildHotlineDivider(),
-                    _buildHotlineItem('Ambulans', '118'),
-                    _buildHotlineDivider(),
-                    _buildHotlineItem('Polisi', '110'),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      ],
-    );
-  }
 
-  Widget _buildPriorityAlertCard(BuildContext context, VolcanoSummary volcano) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: volcano.activityLevel.backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: volcano.activityLevel.color.withOpacity(0.4),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+        // Sync status + total pill
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: p.amb,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
                 children: [
-                  Icon(
-                    Icons.warning_rounded,
-                    color: volcano.activityLevel.color,
-                    size: 18,
+                  Text(
+                    '${response.totalCount}',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                      height: 1,
+                      color: AppColors.inkOnAmber,
+                    ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   const Text(
-                    'STATUS AKTIF TERKINI',
+                    'TOTAL\nGUNUNG',
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: AppColors.textPrimary,
+                      fontSize: 10,
+                      height: 1.2,
+                      letterSpacing: 1,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.inkOnAmber,
                     ),
                   ),
                 ],
               ),
-              ActivityLevelBadge(level: volcano.activityLevel, compact: true),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            volcano.name,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
             ),
-          ),
-          if (volcano.location != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              volcano.location!,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => context.push('/volcanoes/${volcano.id}'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: volcano.activityLevel.color,
-                side: BorderSide(color: volcano.activityLevel.color),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-              ),
-              child: const Text(
-                'Lihat Laporan Detail',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-    BuildContext context,
-    WidgetRef ref,
-    ActivityLevel level,
-    int count,
-  ) {
-    return InkWell(
-      onTap: () {
-        ref.read(volcanoLevelFilterProvider.notifier).state = level;
-        context.go('/volcanoes');
-      },
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: count > 0 ? level.color.withOpacity(0.3) : const Color(0xFFE2E8F0),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 36,
-              decoration: BoxDecoration(
-                color: level.color,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${level.title} (${level.label})',
-                    style: const TextStyle(
-                      fontSize: 11,
+                    response.isStale ? 'Data tersimpan $relative' : 'Sinkron $relative',
+                    style: TextStyle(
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                      color: p.ink,
                     ),
                   ),
                   Text(
-                    '$count',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: count > 0 ? level.color : AppColors.textMuted,
-                    ),
+                    'Level IV (Awas): ${counts['IV'] ?? 0} gunung',
+                    style: TextStyle(fontSize: 14, color: p.mut),
                   ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: iconColor, size: 22),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
-      ),
-    );
-  }
-
-  Widget _buildHotlineItem(String label, String number) {
-    return InkWell(
-      onTap: () async {
-        final uri = Uri.parse('tel:$number');
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri);
-        }
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          children: [
-            Text(
-              number,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHotlineDivider() {
-    return Container(
-      height: 24,
-      width: 1,
-      color: const Color(0xFFE2E8F0),
-    );
-  }
-
-  Widget _buildFavoriteSection(
-    BuildContext context,
-    WidgetRef ref,
-    List<VolcanoSummary> favorites,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.star_rounded, size: 20, color: Colors.amber),
-                const SizedBox(width: 6),
-                const Text(
-                  'Gunung Pantauan Anda',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                if (favorites.isNotEmpty) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${favorites.length}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.amber.shade900,
+                  if (response.warningMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        response.warningMessage!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: p.isDark
+                              ? const Color(0xFFE57368)
+                              : AppColors.levelIV,
+                        ),
                       ),
                     ),
-                  ),
                 ],
-              ],
-            ),
-            if (favorites.isNotEmpty)
-              GestureDetector(
-                onTap: () {
-                  ref.read(showOnlyFavoritesFilterProvider.notifier).state = true;
-                  context.go('/volcanoes');
-                },
-                child: const Text(
-                  'Kelola',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
               ),
+            ),
           ],
         ),
-        const SizedBox(height: 10),
-        if (favorites.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.star_outline_rounded, size: 22, color: Colors.amber.shade800),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+
+        // Escalation alerts (kept from functional spec)
+        if (alerts.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          ...alerts.map((alert) => _StatusAlertCard(alert: alert)),
+        ],
+
+        // Activity distribution
+        AppCard(
+          margin: const EdgeInsets.only(top: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DistributionBar(counts: counts),
+              const SizedBox(height: 14),
+              Column(
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        'Belum ada gunung yang dipantau',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Tandai ikon bintang ⭐ pada gunung terdekat untuk melihat statusnya di sini.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                      Expanded(child: _LevelButton(level: ActivityLevel.levelIV, count: counts['IV'] ?? 0)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _LevelButton(level: ActivityLevel.levelIII, count: counts['III'] ?? 0)),
                     ],
                   ),
-                ),
-                const SizedBox(width: 6),
-                OutlinedButton(
-                  onPressed: () => context.go('/volcanoes'),
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: _LevelButton(level: ActivityLevel.levelII, count: counts['II'] ?? 0)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _LevelButton(level: ActivityLevel.levelI, count: counts['I'] ?? 0)),
+                    ],
                   ),
-                  child: const Text('Pilih', style: TextStyle(fontSize: 11)),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Quick actions
+        Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.my_location_rounded,
+                    background: p.lime,
+                    caption: 'Terdekat',
+                    title: 'Deteksi GPS',
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await ref.read(userLocationProvider.notifier).detectLocation();
+                      final state = ref.read(userLocationProvider);
+                      if (state.errorMessage != null) {
+                        messenger.showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+                      } else if (state.nearbyVolcanoes.isNotEmpty) {
+                        final closest = state.nearbyVolcanoes.first;
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Terdekat: ${closest.volcano.name} (${closest.formattedDistance})',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.star_rounded,
+                    background: p.amb.withValues(alpha: 0.3),
+                    caption: 'Pantauan',
+                    title: '${favorites.length} gunung',
+                    onTap: () {
+                      ref.read(showOnlyFavoritesFilterProvider.notifier).state = true;
+                      context.go('/volcanoes');
+                    },
+                  ),
                 ),
               ],
             ),
-          )
-        else
-          SizedBox(
-            height: 115,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: favorites.length,
-              separatorBuilder: (_, index) => const SizedBox(width: 10),
-              itemBuilder: (context, index) {
-                final volcano = favorites[index];
-                return _buildFavoriteVolcanoCard(context, ref, volcano);
-              },
+          ),
+        ),
+
+        // Priority warning
+        if (priority != null) ...[
+          const SizedBox(height: 14),
+          _PriorityAlertCard(volcano: priority),
+        ],
+
+        // Emergency contacts
+        const SectionTitle('Kontak darurat'),
+        Row(
+          children: [
+            Expanded(
+              child: _EmergencyTile(
+                icon: Icons.phone_in_talk_rounded,
+                label: 'BNPB',
+                detail: '117',
+                onTap: () => _call(context, '117'),
+              ),
             ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _EmergencyTile(
+                icon: Icons.phone_in_talk_rounded,
+                label: 'Basarnas',
+                detail: '115',
+                onTap: () => _call(context, '115'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _EmergencyTile(
+                icon: Icons.phone_in_talk_rounded,
+                label: 'PVMBG',
+                detail: '(022) 7272606',
+                onTap: () => _call(context, '0227272606'),
+              ),
+            ),
+          ],
+        ),
+
+        if (locationState.errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Caption(locationState.errorMessage!, color: p.mut),
           ),
       ],
     );
   }
 
-  Widget _buildFavoriteVolcanoCard(
-    BuildContext context,
-    WidgetRef ref,
-    VolcanoSummary volcano,
-  ) {
-    return Container(
-      width: 210,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: volcano.activityLevel.color.withOpacity(0.35),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => context.push('/volcanoes/${volcano.id}'),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ActivityLevelBadge(level: volcano.activityLevel, compact: true),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        volcano.region.label,
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      volcano.name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      volcano.location ?? 'Indonesia',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Lihat Detail',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: volcano.activityLevel.color,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 12,
-                      color: volcano.activityLevel.color,
-                    ),
-                  ],
-                ),
-              ],
+  VolcanoSummary? _pickPriorityVolcano(List<VolcanoSummary> volcanoes) {
+    for (final level in ActivityLevel.values) {
+      final matches = volcanoes.where((v) => v.activityLevel == level).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+      if (matches.isNotEmpty) return matches.first;
+    }
+    return null;
+  }
+
+  Future<void> _call(BuildContext context, String number) async {
+    final uri = Uri.parse('tel:$number');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+}
+
+class _DistributionBar extends StatelessWidget {
+  final Map<String, int> counts;
+
+  const _DistributionBar({required this.counts});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final segments = <Widget>[];
+    for (final level in ActivityLevel.values) {
+      final count = counts[level.code] ?? 0;
+      if (count <= 0) continue;
+      if (segments.isNotEmpty) {
+        segments.add(const SizedBox(width: 3));
+      }
+      segments.add(
+        Expanded(
+          flex: count,
+          child: Container(
+            height: 8,
+            decoration: BoxDecoration(
+              color: level.color,
+              borderRadius: BorderRadius.circular(4),
             ),
+          ),
+        ),
+      );
+    }
+
+    if (segments.isEmpty) {
+      return Container(
+        height: 8,
+        decoration: BoxDecoration(
+          color: p.line,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      );
+    }
+
+    return Row(children: segments);
+  }
+}
+
+class _LevelButton extends StatelessWidget {
+  final ActivityLevel level;
+  final int count;
+
+  const _LevelButton({required this.level, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final ref = ProviderScope.containerOf(context, listen: false);
+
+    return Material(
+      color: p.bg,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          ref.read(volcanoLevelFilterProvider.notifier).state = level;
+          context.go('/volcanoes');
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              LevelMark(level: level, size: 36),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$count',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w300,
+                      height: 1,
+                      color: p.ink,
+                    ),
+                  ),
+                  Text(
+                    level.label.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w500,
+                      color: p.mut,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildStatusAlertBanner(
-    BuildContext context,
-    WidgetRef ref,
-    StatusAlert alert,
-  ) {
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final Color background;
+  final String caption;
+  final String title;
+  final VoidCallback onTap;
+
+  const _QuickActionCard({
+    required this.icon,
+    required this.background,
+    required this.caption,
+    required this.title,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Material(
+      color: p.card,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, size: 22, color: p.ink),
+              ),
+              const SizedBox(height: 12),
+              Caption(caption),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w600,
+                  color: p.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PriorityAlertCard extends StatelessWidget {
+  final VolcanoSummary volcano;
+
+  const _PriorityAlertCard({required this.volcano});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final recommendation = _levelRecommendations[volcano.activityLevel] ?? '';
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: p.dk,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: p.amb,
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              '● ${volcano.activityLevel.label.toUpperCase()} · ${volcano.activityLevel.title.toUpperCase()}',
+              style: const TextStyle(
+                fontSize: 11,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
+                color: AppColors.inkOnAmber,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${volcano.name}. ',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  TextSpan(text: recommendation),
+                ],
+              ),
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.4,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: () => context.push('/volcanoes/${volcano.id}'),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'BUKA LAPORAN DETAIL',
+                    style: TextStyle(
+                      fontSize: 12,
+                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w500,
+                      color: p.amb,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(Icons.arrow_forward_rounded, size: 16, color: p.amb),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmergencyTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String detail;
+  final VoidCallback onTap;
+
+  const _EmergencyTile({
+    required this.icon,
+    required this.label,
+    required this.detail,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Material(
+      color: p.card,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 20, color: p.ink),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: p.ink,
+                ),
+              ),
+              Caption(detail),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusAlertCard extends ConsumerWidget {
+  final StatusAlert alert;
+
+  const _StatusAlertCard({required this.alert});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = context.palette;
+    final color = alert.currentLevel.color;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: alert.currentLevel.backgroundColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: alert.currentLevel.color, width: 1.5),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber_rounded, color: alert.currentLevel.color, size: 24),
+          Icon(Icons.warning_amber_rounded, size: 22, color: color),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Perhatian: Kenaikan Status Gunung Api!',
+                  'Kenaikan status gunung api',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: alert.currentLevel.color,
+                    fontWeight: FontWeight.w700,
+                    color: Color.lerp(p.ink, color, 0.5),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${alert.volcanoName} mengalami kenaikan status dari ${alert.previousLevel.title} ke ${alert.currentLevel.title} (${alert.currentLevel.label}).',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textPrimary),
+                  '${alert.volcanoName}: ${alert.previousLevel.title} → ${alert.currentLevel.title} (${alert.currentLevel.label}).',
+                  style: TextStyle(fontSize: 12, color: p.ink),
                 ),
                 const SizedBox(height: 6),
                 Row(
@@ -830,11 +742,11 @@ class HomeScreen extends ConsumerWidget {
                     GestureDetector(
                       onTap: () => context.push('/volcanoes/${alert.volcanoId}'),
                       child: Text(
-                        'Periksa Laporan Resmi →',
+                        'Periksa laporan →',
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: alert.currentLevel.color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: color,
                         ),
                       ),
                     ),
@@ -843,136 +755,15 @@ class HomeScreen extends ConsumerWidget {
                       onTap: () => ref
                           .read(statusAlertProvider.notifier)
                           .dismissAlert(alert.volcanoId, alert.currentLevel),
-                      child: const Text(
+                      child: Text(
                         'Tutup',
-                        style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                        style: TextStyle(fontSize: 12, color: p.mut),
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNearbyVolcanoCard(
-    BuildContext context,
-    WidgetRef ref,
-    UserLocationState locationState,
-  ) {
-    if (locationState.nearbyVolcanoes.isNotEmpty) {
-      final closest = locationState.nearbyVolcanoes.first;
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blue.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.withOpacity(0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.near_me_rounded, size: 20, color: Colors.blue.shade700),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'Gunung Terdekat: ',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      Flexible(
-                        child: Text(
-                          closest.volcano.name,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Text(
-                        '${closest.formattedDistance} dari Anda',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.blue.shade800,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ActivityLevelBadge(level: closest.volcano.activityLevel, compact: true),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.map_outlined, size: 20, color: AppColors.primary),
-              tooltip: 'Lihat di Peta',
-              onPressed: () => context.go('/map'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.location_searching_rounded, size: 18, color: Colors.blue.shade700),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Cari tahu gunung api terdekat dari lokasi Anda',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: locationState.isLoading
-                ? null
-                : () => ref.read(userLocationProvider.notifier).detectLocation(),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-            ),
-            child: locationState.isLoading
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Deteksi GPS', style: TextStyle(fontSize: 11)),
           ),
         ],
       ),

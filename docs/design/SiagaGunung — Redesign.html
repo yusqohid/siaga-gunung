@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SiagaGunung — Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EDEDEA;--card:#fff;--ink:#1B1B19;--mut:#7B7B75;--line:#E0E0DB;--amb:#F2B04A;--lime:#EEF5C8;--blu:#9DBCF2;--dk:#1B1B19;--l4:#D9453B;--l3:#E8742C;--l2:#F2B04A;--l1:#5FAE63;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151513;--card:#232320;--ink:#F3F3EE;--mut:#9C9C95;--line:#33332F;--lime:#2C3320;--dk:#2D2D29;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#151513;--card:#232320;--ink:#F3F3EE;--mut:#9C9C95;--line:#33332F;--lime:#2C3320;--dk:#2D2D29;color-scheme:dark}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%;background:var(--bg);color:var(--ink);font-family:'Outfit',system-ui,-apple-system,'Segoe UI',sans-serif;display:grid;place-items:center}
+button{font:inherit;cursor:pointer}
+.phone{position:relative;width:100%;height:100%;background:var(--bg);overflow:hidden}
+@media(min-width:500px){body{background:#3a3a38}.phone{width:400px;height:min(860px,94vh);border-radius:44px;box-shadow:0 30px 80px #0008}}
+#v,#dt{height:100%;overflow-y:auto;padding:20px 20px 120px;scrollbar-width:none}
+#dt{position:absolute;inset:0;z-index:5;background:var(--bg);padding:0 0 130px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.lt{font-size:30px;font-weight:300;color:var(--mut);line-height:1.1}
+h1{font-size:32px;font-weight:600;line-height:1.1}
+.rnd{width:46px;height:46px;border-radius:50%;border:0;background:var(--card);color:var(--ink);display:grid;place-items:center;flex:none}
+.amb{background:var(--amb);color:#1B1B19}
+.big{font-size:150px;font-weight:200;letter-spacing:-.05em;line-height:1}
+.hero{display:flex;align-items:flex-start;gap:10px;margin:18px 0 12px}
+.un{padding-top:20px}.un b{display:block;font-size:20px;font-weight:600}.un small{font-size:12px;letter-spacing:.08em;font-weight:500;color:var(--mut)}
+.cap{font-size:11px;letter-spacing:.1em;font-weight:500;text-transform:uppercase;color:var(--mut)}
+.row{display:flex;align-items:center;gap:12px}
+.pill{background:var(--amb);color:#1B1B19;border-radius:14px;padding:10px 14px;display:flex;gap:8px;align-items:center}
+.pill b{font-size:28px;font-weight:600}.pill span{font-size:10px;letter-spacing:.08em;font-weight:500;line-height:1.2;text-transform:uppercase}
+.card{background:var(--card);border-radius:24px;padding:18px;margin-top:14px}
+.bar{display:flex;height:8px;border-radius:8px;overflow:hidden;gap:3px;margin:14px 0}.bar i{display:block;height:100%;border-radius:4px}
+.lv{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lvb{border:0;background:var(--bg);border-radius:16px;padding:10px 12px;text-align:left;color:var(--ink);display:flex;gap:10px;align-items:center}
+.lvb b{font-size:28px;font-weight:300;line-height:1}.lvb small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.two .card{margin:0;padding:14px;border:0;text-align:left;color:var(--ink)}
+.ic{width:44px;height:44px;border-radius:14px;background:var(--lime);display:grid;place-items:center;margin-bottom:12px;color:var(--ink)}
+.two b{display:block;font-size:19px;font-weight:600}
+.rm{display:grid;place-items:center;min-width:36px;height:36px;padding:0 6px;border-radius:12px;background:color-mix(in srgb,var(--c) 20%,transparent);color:color-mix(in srgb,var(--c) 65%,var(--ink));font-style:normal;font-weight:600;font-size:14px;flex:none}
+.dk{background:var(--dk);color:#fff;border-radius:24px;padding:18px;margin-top:14px}
+.dk .tag{background:var(--amb);color:#1B1B19;border-radius:99px;padding:6px 12px;font-size:11px;font-weight:600;letter-spacing:.08em;display:inline-block}
+.dk p{font-size:16px;line-height:1.4;margin:14px 0}
+.dk button{background:none;border:0;color:var(--amb);font-size:12px;font-weight:500;letter-spacing:.08em;display:flex;gap:8px;align-items:center;padding:0;text-transform:uppercase}
+h2{font-size:20px;font-weight:500;margin:26px 0 12px}
+.chips{display:flex;gap:8px;overflow-x:auto;margin:12px -20px 0;padding:2px 20px;scrollbar-width:none}
+.chip{flex:none;border:0;border-radius:99px;padding:10px 16px;background:var(--card);color:var(--ink);font-size:14px}
+.chip.on{background:var(--amb);color:#1B1B19;font-weight:600}
+.srch{display:flex;gap:10px;align-items:center;background:var(--card);border-radius:18px;padding:0 16px;height:52px;margin-top:16px;color:var(--mut)}
+.srch input{flex:1;min-width:0;border:0;background:none;font:inherit;color:var(--ink);outline:0}
+.item{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:20px;padding:12px 8px 12px 12px;margin-bottom:8px;cursor:pointer}
+.tx{flex:1;min-width:0}.nm{font-size:17px;font-weight:500}.tx small{color:var(--mut);font-size:13px}
+.star{background:none;border:0;color:var(--mut);padding:8px;display:grid}.star.on{color:var(--amb)}
+.emg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.emg a{background:var(--card);border-radius:20px;padding:14px;color:var(--ink);text-decoration:none}.emg b{display:block;font-size:22px;font-weight:600;margin-top:6px}
+.map{overflow:auto;border-radius:28px;background:var(--card);height:400px;margin-top:16px;scrollbar-width:none}
+.mi{position:relative;width:900px;height:100%;background-image:radial-gradient(var(--line) 1.5px,transparent 1.5px);background-size:24px 24px}
+.pin{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;border:2px solid var(--card);background:var(--c);color:#fff;font-size:11px;font-weight:600;display:grid;place-items:center;cursor:pointer;padding:0}
+.pin.l2{color:#1B1B19}
+.rg{position:absolute;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);opacity:.8}
+.leg{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;font-size:13px;color:var(--mut)}.leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--c)}
+.sheet{position:absolute;left:12px;right:12px;bottom:92px;z-index:4;background:var(--card);border-radius:24px;padding:16px;box-shadow:0 12px 40px #0003;display:none}.sheet.on{display:block}
+.sheet .row{margin-bottom:12px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:25px;background:var(--amb);color:#1B1B19;font-weight:600;letter-spacing:.06em;font-size:13px;text-transform:uppercase;border:0;width:100%;text-decoration:none}
+.ed{background:var(--card);border-radius:24px;padding:18px;margin-bottom:12px}
+.ed .row{justify-content:space-between}.ed .t{font-size:19px;font-weight:600;line-height:1.25;margin:12px 0 6px}.ed p{color:var(--mut);font-size:14px;line-height:1.45}
+.tg{background:var(--bg);border-radius:99px;padding:5px 12px;font-size:12px;font-weight:500}
+.ed .src{display:flex;justify-content:space-between;margin-top:14px;font-size:12px;color:var(--mut);letter-spacing:.04em}.ed .src b{color:var(--ink);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.prog{height:8px;border-radius:8px;background:var(--line);overflow:hidden;margin:6px 0 4px}.prog i{display:block;height:100%;background:var(--amb);border-radius:8px;transition:width .3s}
+.ck{display:flex;gap:14px;align-items:center;background:var(--card);border:0;width:100%;text-align:left;color:var(--ink);border-radius:20px;padding:14px;margin-bottom:8px}
+.bx{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;flex:none;color:#1B1B19}
+.ck.on .bx{background:var(--amb);border-color:var(--amb)}.ck.on .nm{color:var(--mut)}
+.dh{height:230px;padding:calc(20px) 20px 0;position:relative;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 40%,var(--bg)),var(--bg))}
+.dh .rn{position:absolute;right:20px;bottom:30px;font-size:150px;font-weight:200;letter-spacing:-.04em;color:var(--c);opacity:.4;line-height:1}
+.dh .top{position:relative}.dh .row{gap:10px}
+.db{padding:0 20px;margin-top:-30px;position:relative}
+.pl{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.pl span{background:var(--card);border-radius:99px;padding:10px 14px;font-size:14px;display:flex;gap:6px;align-items:center}
+.tabs{display:flex;gap:22px;overflow-x:auto;margin:22px 0 4px;scrollbar-width:none}
+.tab{background:none;border:0;font-size:16px;color:var(--mut);padding:0 0 10px;position:relative;white-space:nowrap}
+.tab.on{color:var(--ink);font-weight:600}.tab.on:after{content:"";position:absolute;left:0;bottom:0;width:22px;height:3px;border-radius:3px;background:var(--amb)}
+.rw{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:16px 0;border-bottom:1px solid var(--line);font-size:16px;line-height:1.4}
+.rw span{color:var(--mut);font-size:14px;text-align:right}.rw .n{width:20px;flex:none;text-align:left}.rw p{flex:1}
+.cta{position:absolute;left:20px;right:20px;bottom:18px;display:flex;gap:10px;z-index:6}
+.cta .rnd{width:60px;height:60px;background:var(--dk);color:#fff}.cta .rnd.on{color:var(--amb)}.cta .btn{height:60px;border-radius:30px;flex:1}
+#nav{position:absolute;left:12px;right:12px;bottom:12px;z-index:7;background:var(--dk);border-radius:34px;padding:8px;display:flex;justify-content:space-between;box-shadow:0 10px 30px #0004}
+#nav button{border:0;background:none;color:#B9B9B2;height:50px;min-width:50px;border-radius:25px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+#nav button.on{background:var(--amb);color:#1B1B19}#nav span{display:none}#nav .on span{display:inline}
+.toast{position:absolute;left:20px;right:20px;top:20px;background:var(--dk);color:#fff;border-radius:16px;padding:12px 16px;font-size:14px;z-index:20;opacity:0;transform:translateY(-10px);transition:.25s;pointer-events:none}.toast.on{opacity:1;transform:none}
+</style></head><body>
+<div class="phone"><main id="v"></main><div id="dt" hidden></div><div class="sheet" id="sh"></div><nav id="nav"></nav><div class="toast" id="ts"></div></div>
+<script>
+const L={4:['Awas','--l4'],3:['Siaga','--l3'],2:['Waspada','--l2'],1:['Normal','--l1']},RM=['','I','II','III','IV'],CNT={4:0,3:3,2:24,1:42};
+const V=[['Anak Krakatau','Sumatera','Lampung',3,105.42,-6.10],['Merapi','Jawa','DI Yogyakarta & Jawa Tengah',3,110.44,-7.54],['Semeru','Jawa','Jawa Timur',3,112.92,-8.11],
+['Anak Ranakah','Bali & Nusa Tenggara','Nusa Tenggara Timur',2,120.52,-8.68],['Awu','Sulawesi','Sulawesi Utara',2,125.45,3.68],['Banda Api','Maluku','Maluku',2,129.88,-4.52],['Ibu','Maluku','Maluku Utara',2,127.63,1.49],
+['Karangetang','Sulawesi','Sulawesi Utara',2,125.40,2.78],['Kerinci','Sumatera','Jambi',2,101.26,-1.70],['Marapi','Sumatera','Sumatera Barat',2,100.47,-0.38],['Bromo','Jawa','Jawa Timur',2,112.95,-7.94],
+['Agung','Bali & Nusa Tenggara','Bali',2,115.51,-8.34],['Rinjani','Bali & Nusa Tenggara','Nusa Tenggara Barat',1,116.46,-8.41],['Tangkuban Parahu','Jawa','Jawa Barat',1,107.60,-6.76],['Sinabung','Sumatera','Sumatera Utara',1,98.39,3.17]];
+const RG=['Sumatera','Jawa','Bali & Nusa Tenggara','Sulawesi','Maluku'];
+const P={home:'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10',map:'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14',vol:'M3 20h18L14 9h-4L3 20zM10 9l-1-3M14 9l1-3M12 8V4',book:'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2V5zM4 19a2 2 0 012-2h13',chk:'M4 7l2 2 3-3M4 17l2 2 3-3M13 8h7M13 18h7',star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',back:'M19 12H5M11 5l-7 7 7 7',share:'M12 3v12M7 8l5-5 5 5M5 14v6h14v-6',pin:'M12 21s7-6 7-11a7 7 0 10-14 0c0 5 7 11 7 11zM12 12a2 2 0 100-4 2 2 0 000 4z',search:'M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-5-5',arr:'M5 12h14M13 6l6 6-6 6',ph:'M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z',sync:'M20 11a8 8 0 00-14-4L4 9M4 4v5h5M4 13a8 8 0 0014 4l2-2M20 20v-5h-5',gps:'M12 3v3M12 18v3M3 12h3M18 12h3M12 8a4 4 0 100 8 4 4 0 000-8z',clock:'M12 4a8 8 0 100 16 8 8 0 000-16zM12 8v4l3 2',ok:'M5 12l5 5 9-10'};
+const I=(n,s=22,f)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="${f?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${P[n]}"/></svg>`;
+const rm=l=>`<i class="rm" style="--c:var(${L[l][1]})">${RM[l]}</i>`;
+const CK=[['Dokumen','Dokumen identitas & berharga','KTP, KK, akta, buku tabungan dalam plastik kedap air'],['Dokumen','Uang tunai secukupnya','Pecahan kecil untuk transaksi saat ATM atau listrik padam'],
+['Pelindung diri','Masker N95 / KN95','Minimal 3 buah per orang untuk menyaring abu'],['Pelindung diri','Kacamata pelindung','Melindungi mata dari abu silika yang abrasif'],['Pelindung diri','Pakaian hangat & jas hujan','Jaket, celana panjang, baju ganti 3 hari'],
+['P3K & obat','Kotak P3K standar','Kasa steril, plester, perban, antiseptik, gunting'],['P3K & obat','Obat pribadi rutin','Stok obat untuk kebutuhan 7 hari'],['Logistik','Air minum','Minimal untuk 3 hari'],['Logistik','Makanan tahan lama','Siap saji tanpa perlu dimasak'],
+['Peralatan','Senter & baterai cadangan','Senter LED dengan baterai tambahan'],['Peralatan','Peluit darurat','Untuk memberi tanda bila terjebak'],['Peralatan','Power bank & kabel','Terisi penuh sebelum disimpan']];
+const ED=[['Tingkat Aktivitas',4,'Memahami 4 Tingkatan Aktivitas Gunung Api','Makna Level I (Normal) hingga Level IV (Awas) menurut standar PVMBG.','Badan Geologi / PVMBG'],['Kesiapsiagaan',5,'Mengenal Ragam Bahaya Erupsi','Awan panas guguran, lahar hujan, jatuhan abu, dan gas beracun.','BNPB & PVMBG'],
+['Protokol Abu',4,'Menghadapi Hujan Abu & Gas Vulkanik','Lindungi diri dari partikel silika tajam dan jaga air bersih keluarga.','Kemenkes RI & PVMBG'],['Panduan Evakuasi',5,'Persiapan Sebelum Kejadian','Kesiapsiagaan keluarga, titik kumpul, dan rute aman.','BNPB']];
+const REC={4:['Ikuti arahan evakuasi BPBD setempat dan segera tinggalkan zona bahaya.','Jangan memasuki radius larangan yang ditetapkan PVMBG.','Gunakan masker dan kacamata saat hujan abu.'],
+3:['Dilarang beraktivitas di dalam radius yang ditetapkan PVMBG dari pusat erupsi.','Waspadai lontaran batu pijar, hujan abu lebat, dan potensi lahar.','Tetap tenang, jangan percaya isu, dan ikuti arahan BPBD.'],
+2:['Pendaki dan wisatawan dilarang mendekati kawah dalam radius aman.','Siapkan masker dan tas siaga di rumah.','Pantau informasi resmi PVMBG secara berkala.'],1:['Aktivitas normal; tetap ikuti rambu di kawasan gunung.','Pantau perubahan status melalui kanal resmi.']};
+const S={t:'home',d:null,tab:0,reg:'',lv:0,q:'',ec:'',sel:null,fav:new Set(),ck:new Set()};
+try{S.ck=new Set(JSON.parse(localStorage.getItem('sg-ck')||'[]'));S.fav=new Set(JSON.parse(localStorage.getItem('sg-fav')||'[]'))}catch(e){}
+const save=()=>{try{localStorage.setItem('sg-ck',JSON.stringify([...S.ck]));localStorage.setItem('sg-fav',JSON.stringify([...S.fav]))}catch(e){}};
+const $=i=>document.getElementById(i);
+const toast=m=>{const t=$('ts');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600)};
+const chips=(arr,cur,act)=>`<div class="chips">${arr.map(([v,l])=>`<button class="chip ${cur==v?'on':''}" data-a="${act}" data-v="${v}">${l}</button>`).join('')}</div>`;
+const lvChips=()=>chips([[0,'Semua'],[4,'IV Awas'],[3,'III Siaga'],[2,'II Waspada'],[1,'I Normal']],S.lv,'lv');
+function list(){const q=S.q.toLowerCase();const r=V.map((x,i)=>[x,i]).filter(([x])=>(!S.reg||x[1]==S.reg)&&(!S.lv||x[3]==S.lv)&&(!q||(x[0]+x[1]+x[2]).toLowerCase().includes(q))).sort((a,b)=>b[0][3]-a[0][3]||a[0][0].localeCompare(b[0][0]));
+return `<p class="cap" style="margin:16px 0 10px">Menampilkan ${r.length} dari ${V.length} (contoh data)</p>`+(r.map(([x,i])=>`<div class="item" data-a="det" data-v="${i}">${rm(x[3])}<div class="tx"><div class="nm">${x[0]}</div><small>${L[x[3]][0]} · ${x[2]}</small></div><button class="star ${S.fav.has(i)?'on':''}" data-a="fav" data-v="${i}" aria-label="Pantau">${I('star',22,S.fav.has(i))}</button></div>`).join('')||'<p class="cap">Tidak ada gunung yang cocok</p>')}
+const head=(a,b)=>`<div class="top"><div><p class="lt">${a}</p><h1>${b}</h1></div></div>`;
+const views={
+home:()=>`<div class="top"><div><p class="lt">Pantauan hari ini,</p><h1>Gunung Api</h1></div><div class="row" style="gap:8px"><button class="rnd amb" data-a="sync" aria-label="Segarkan">${I('sync')}</button></div></div>
+<div class="hero"><span class="big">3</span><div class="un"><b>GUNUNG</b><small>STATUS SIAGA</small></div></div>
+<div class="row"><div class="pill"><b>69</b><span>Total<br>gunung</span></div><div><b style="font-size:18px;font-weight:600">Sinkron 19 mnt lalu</b><p class="cap" style="text-transform:none;letter-spacing:0;font-size:14px">Level IV (Awas): 0 gunung</p></div></div>
+<div class="card"><div class="bar">${[4,3,2,1].map(l=>CNT[l]?`<i style="flex:${CNT[l]};background:var(${L[l][1]})"></i>`:'').join('')}</div><div class="lv">${[4,3,2,1].map(l=>`<button class="lvb" data-a="lvg" data-v="${l}">${rm(l)}<div><b>${CNT[l]}</b><small>${L[l][0]}</small></div></button>`).join('')}</div></div>
+<div class="two"><button class="card" data-a="gps"><div class="ic">${I('gps')}</div><span class="cap">Terdekat</span><b>Deteksi GPS</b></button><button class="card" data-a="lvg" data-v="0"><div class="ic" style="background:color-mix(in srgb,var(--amb) 30%,transparent)">${I('star',22)}</div><span class="cap">Pantauan</span><b>${S.fav.size} gunung</b></button></div>
+<div class="dk"><span class="tag">● SIAGA · LEVEL III</span><p><b style="font-weight:600">Anak Krakatau.</b> Dilarang memasuki radius 5 km dari pusat erupsi. Waspadai lontaran batu pijar dan hujan abu.</p><button data-a="det" data-v="0">Buka laporan detail ${I('arr',16)}</button></div>
+<h2>Kontak darurat</h2><div class="emg"><a href="tel:117">${I('ph',20)}<b>117</b><span class="cap">BNPB</span></a><a href="tel:115">${I('ph',20)}<b>115</b><span class="cap">Basarnas</span></a><a href="tel:0227272606">${I('ph',20)}<b>PVMBG</b><span class="cap">Bandung</span></a></div>`,
+peta:()=>head('Sebaran','Peta Gunung Api')+lvChips()+`<div class="map"><div class="mi">${[['Sumatera',100,-1.5],['Kalimantan',110,1.5],['Jawa',107,-9.8],['Nusa Tenggara',117,-10.4],['Sulawesi',120,-3.5],['Maluku',126,-6.5]].map(([n,x,y])=>`<span class="rg" style="left:${(x-94)/48*100}%;top:${(7-y)/18*100}%">${n}</span>`).join('')}${V.map((x,i)=>(!S.lv||x[3]==S.lv)?`<button class="pin l${x[3]}" style="--c:var(${L[x[3]][1]});left:${(x[4]-94)/48*100}%;top:${(7-x[5])/18*100}%" data-a="pin" data-v="${i}">${RM[x[3]]}</button>`:'').join('')}</div></div><p class="cap" style="margin-top:10px">Geser peta ke kanan · ketuk penanda untuk detail</p><div class="leg">${[4,3,2,1].map(l=>`<span><i style="--c:var(${L[l][1]})"></i>${RM[l]} ${L[l][0]}</span>`).join('')}</div>`,
+gunung:()=>head('Status aktivitas','Daftar Gunung')+`<label class="srch">${I('search',20)}<input id="q" placeholder="Cari gunung, provinsi, pulau" value="${S.q}"></label>`+chips([['','Semua wilayah'],...RG.map(r=>[r,r])],S.reg,'reg')+lvChips()+`<div id="lst">${list()}</div>`,
+edu:()=>head('Edukasi &','Panduan Mitigasi')+chips([['','Semua'],...[...new Set(ED.map(e=>e[0]))].map(c=>[c,c])],S.ec,'ec')+`<div style="margin-top:16px">${ED.filter(e=>!S.ec||e[0]==S.ec).map(e=>`<div class="ed"><div class="row"><span class="tg">${e[0]}</span><span class="cap" style="display:flex;gap:4px;align-items:center">${I('clock',14)}${e[1]} mnt</span></div><div class="t">${e[2]}</div><p>${e[3]}</p><div class="src"><span>${e[4]}</span><b>Baca</b></div></div>`).join('')}</div>`,
+check:()=>{const n=S.ck.size;let g='';return head('Kesiapan mandiri','Tas Siaga 72 Jam')+`<div class="hero" style="margin-bottom:0"><span class="big">${n}</span><div class="un"><b>/ 12</b><small>TERPENUHI</small></div></div><div class="prog"><i style="width:${n/12*100}%"></i></div><p class="cap" style="text-transform:none;letter-spacing:0;font-size:14px">Masukkan semuanya ke ransel siaga keluarga.</p>`+CK.map((c,i)=>{let h='';if(c[0]!=g){g=c[0];h=`<h2 style="font-size:17px;margin:22px 0 10px">${g}</h2>`}return h+`<button class="ck ${S.ck.has(i)?'on':''}" data-a="ck" data-v="${i}"><span class="bx">${S.ck.has(i)?I('ok',16):''}</span><div class="tx"><div class="nm">${c[1]}</div><small>${c[2]}</small></div></button>`}).join('')}};
+function detail(){const x=V[S.d],l=x[3],tabs=['Rekomendasi','Visual','Kegempaan','Cuaca'];let b;
+if(S.tab==0)b=REC[l].map((t,i)=>`<div class="rw"><span class="n">${i+1}</span><p>${t}</p></div>`).join('')+`<div class="rw"><span class="n">${I('ph',16)}</span><p>PVMBG (022) 7272606, Bandung</p></div>`;
+else if(S.tab==1)b=`<div class="rw"><p>Gunung api tertutup kabut 0–III. Asap kawah nihil. Cuaca mendung, angin tenang ke arah barat.</p></div>`;
+else if(S.tab==2)b=[['Guguran','20×','amp. 2–65 mm'],['Hembusan','4×','amp. 7–42 mm'],['Hybrid / fase banyak','8×','amp. 2–27 mm'],['Tektonik jauh','1×','amp. 41 mm']].map(r=>`<div class="rw">${r[0]}<span><b style="color:var(--ink);font-weight:600">${r[1]}</b> · ${r[2]}</span></div>`).join('');
+else b=[['Suhu udara','20–23,1 °C'],['Kelembaban','92–99%'],['Tekanan udara','874,3–918,05 mmHg']].map(r=>`<div class="rw">${r[0]}<span>${r[1]}</span></div>`).join('');
+return `<div class="dh" style="--c:var(${L[l][1]})"><span class="rn">${RM[l]}</span><div class="top"><button class="rnd" data-a="back" aria-label="Kembali">${I('back')}</button><div class="row"><button class="rnd" data-a="share" aria-label="Bagikan">${I('share')}</button></div></div></div>
+<div class="db"><p class="lt">Gunung</p><h1 style="font-size:38px">${x[0]}</h1><div class="pl"><span>${rm(l).replace('height:36px','')}Level ${RM[l]} · ${L[l][0]}</span><span>${I('pin',16)}${x[2]}</span><span>${I('clock',16)}12:00–18:00 WIB</span></div>
+<div class="tabs">${tabs.map((t,i)=>`<button class="tab ${S.tab==i?'on':''}" data-a="tab" data-v="${i}">${t}</button>`).join('')}</div>${b}<p class="cap" style="margin-top:16px">Laporan Sen, 23 Nov 2026 · diambil 23:30 WIB</p></div>
+<div class="cta"><button class="rnd ${S.fav.has(S.d)?'on':''}" data-a="fav" data-v="${S.d}" aria-label="Pantau">${I('star',24,S.fav.has(S.d))}</button><a class="btn" href="https://magma.esdm.go.id" target="_blank" rel="noopener">${I('arr',18)} Laporan resmi MAGMA</a></div>`}
+function render(){$('v').innerHTML=views[S.t]();
+$('nav').innerHTML=[['home','Beranda','home'],['peta','Peta','map'],['gunung','Gunung','vol'],['edu','Edukasi','book'],['check','Checklist','chk']].map(([k,n,ic])=>`<button class="${S.t==k?'on':''}" data-a="t" data-v="${k}" aria-label="${n}">${I(ic,22)}<span>${n}</span></button>`).join('');
+const d=$('dt');if(S.d===null){d.hidden=true}else{const y=d.scrollTop;d.innerHTML=detail();d.hidden=false;d.scrollTop=y}
+const s=$('sh');if(S.sel!==null&&S.t=='peta'&&S.d===null){const x=V[S.sel];s.innerHTML=`<div class="row">${rm(x[3])}<div class="tx"><div class="nm">${x[0]}</div><small>${L[x[3]][0]} · ${x[2]}</small></div><button class="star" data-a="x">✕</button></div><button class="btn" data-a="det" data-v="${S.sel}">Lihat detail</button>`;s.classList.add('on')}else s.classList.remove('on')}
+const rad=d=>d*Math.PI/180;
+document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t)return;const a=t.dataset.a,v=t.dataset.v;
+if(a=='t'){S.t=v;S.sel=null;$('v').scrollTop=0}
+else if(a=='lv')S.lv=+v;else if(a=='lvg'){S.lv=+v;S.t='gunung';$('v').scrollTop=0}
+else if(a=='reg')S.reg=v;else if(a=='ec')S.ec=v;
+else if(a=='det'){S.d=+v;S.tab=0;$('dt').scrollTop=0}else if(a=='back')S.d=null;
+else if(a=='tab')S.tab=+v;
+else if(a=='fav'){const i=+v;S.fav.has(i)?S.fav.delete(i):S.fav.add(i);save()}
+else if(a=='ck'){const i=+v;S.ck.has(i)?S.ck.delete(i):S.ck.add(i);save()}
+else if(a=='pin')S.sel=+v;else if(a=='x')S.sel=null;
+else if(a=='sync'){toast('Data PVMBG diperbarui baru saja');return}
+else if(a=='share'){const u=location.href;try{navigator.share?navigator.share({title:'SiagaGunung',url:u}):toast('Berbagi tidak didukung di perangkat ini')}catch(_){}return}
+else if(a=='gps'){if(!navigator.geolocation){toast('GPS tidak tersedia');return}
+navigator.geolocation.getCurrentPosition(p=>{let b,m=1e9;V.forEach(x=>{const dl=rad(x[5]-p.coords.latitude),dn=rad(x[4]-p.coords.longitude),h=Math.sin(dl/2)**2+Math.cos(rad(p.coords.latitude))*Math.cos(rad(x[5]))*Math.sin(dn/2)**2,k=12742*Math.asin(Math.sqrt(h));if(k<m){m=k;b=x}});toast(`Terdekat: ${b[0]} (${Math.round(m)} km)`)},()=>toast('Izin lokasi tidak diberikan'));return}
+render()});
+document.addEventListener('input',e=>{if(e.target.id=='q'){S.q=e.target.value;$('lst').innerHTML=list()}});
+render();
+</script></body></html>

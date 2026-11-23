@@ -5,220 +5,306 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_formatter.dart';
-import '../../../shared/widgets/activity_level_badge.dart';
-import '../../../shared/widgets/data_freshness_badge.dart';
 import '../../../shared/widgets/error_view.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../../map/data/volcano_coordinates.dart';
 import '../data/models/volcano_model.dart';
 import '../providers/volcano_providers.dart';
 
-class VolcanoDetailScreen extends ConsumerWidget {
+class VolcanoDetailScreen extends ConsumerStatefulWidget {
   final String volcanoId;
 
   const VolcanoDetailScreen({super.key, required this.volcanoId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(volcanoDetailProvider(volcanoId));
-    final favoriteIds = ref.watch(favoriteVolcanoesProvider);
-    final isFavorite = favoriteIds.contains(volcanoId);
+  ConsumerState<VolcanoDetailScreen> createState() => _VolcanoDetailScreenState();
+}
+
+class _VolcanoDetailScreenState extends ConsumerState<VolcanoDetailScreen> {
+  int _tab = 0;
+
+  static const List<String> _tabs = ['Rekomendasi', 'Visual', 'Kegempaan', 'Cuaca'];
+
+  @override
+  Widget build(BuildContext context) {
+    final detailAsync = ref.watch(volcanoDetailProvider(widget.volcanoId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detail Aktivitas'),
-        actions: [
-          IconButton(
-            icon: Icon(
-              isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-              color: isFavorite ? Colors.amber : null,
-            ),
-            tooltip: isFavorite ? 'Hapus dari Pantauan' : 'Sematkan ke Pantauan (Beranda)',
-            onPressed: () {
-              ref.read(favoriteVolcanoesProvider.notifier).toggleFavorite(volcanoId);
-              ScaffoldMessenger.of(context).clearSnackBars();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    isFavorite
-                        ? 'Dihapus dari Gunung Pantauan.'
-                        : 'Disematkan ke Gunung Pantauan di Beranda.',
-                  ),
-                  duration: const Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.share_rounded),
-            tooltip: 'Bagikan Status Laporan',
-            onPressed: () {
-              detailAsync.whenData((resp) {
-                final v = resp.volcano;
-                final coord = VolcanoCoordinatesData.getCoordinate(v.name);
-                final text = '''
-🌋 Status Gunung ${v.name} — SiagaGunung
-• Tingkat Aktivitas: ${v.activityLevel.title} (${v.activityLevel.label})
-• Wilayah: ${v.region.label} (${v.location ?? '-'})
-• Ketinggian: ▲ ${coord.elevation} mdpl
-• Periode Laporan: ${v.reportPeriod ?? 'Terbaru'}
-• Rekomendasi: ${v.recommendation ?? '-'}
-
-Sumber Resmi: MAGMA Indonesia (PVMBG)
-${v.sourceUrl ?? ''}
-''';
-                Share.share(text.trim(), subject: 'Status Gunung ${v.name}');
-              });
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Segarkan Laporan',
-            onPressed: () => ref.read(volcanoDetailProvider(volcanoId).notifier).refresh(),
-          ),
-        ],
-      ),
       body: detailAsync.when(
-        loading: () => const LoadingView(message: 'Mengambil laporan detail on-demand...'),
-        error: (err, _) => ErrorView(
-          title: 'Gagal Memuat Detail',
-          message: err.toString().replaceFirst('Exception: ', ''),
-          onRetry: () => ref.read(volcanoDetailProvider(volcanoId).notifier).refresh(),
+        loading: () => _buildShell(
+          const LoadingView(message: 'Mengambil laporan detail on-demand...'),
         ),
-        data: (response) => _buildDetailContent(context, ref, response),
+        error: (err, _) => _buildShell(
+          ErrorView(
+            title: 'Gagal Memuat Detail',
+            message: err.toString().replaceFirst('Exception: ', ''),
+            onRetry: () =>
+                ref.read(volcanoDetailProvider(widget.volcanoId).notifier).refresh(),
+          ),
+        ),
+        data: (response) => _buildDetail(context, response),
       ),
     );
   }
 
-  Widget _buildDetailContent(
-    BuildContext context,
-    WidgetRef ref,
-    VolcanoDetailResponse response,
-  ) {
+  Widget _buildShell(Widget child) {
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Row(
+              children: [
+                RoundIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+                const SizedBox(width: 12),
+                const Text('Detail Aktivitas',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetail(BuildContext context, VolcanoDetailResponse response) {
+    final p = context.palette;
+    final volcano = response.volcano;
+    final isFavorite = ref.watch(favoriteVolcanoesProvider).contains(volcano.id);
+    final topInset = MediaQuery.paddingOf(context).top;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: 110 + bottomInset),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context, volcano, topInset),
+              Transform.translate(
+                offset: const Offset(0, -30),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Gunung',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w300,
+                          height: 1.1,
+                          color: p.mut,
+                        ),
+                      ),
+                      Text(
+                        volcano.name,
+                        style: TextStyle(
+                          fontSize: 38,
+                          fontWeight: FontWeight.w600,
+                          height: 1.1,
+                          letterSpacing: -0.6,
+                          color: p.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _InfoPill(
+                            leading: LevelMark(level: volcano.activityLevel, size: 22),
+                            text: 'Level ${volcano.activityLevel.code} · ${volcano.activityLevel.label}',
+                          ),
+                          _InfoPill(
+                            leading: Icon(Icons.location_on_outlined, size: 16, color: p.mut),
+                            text: volcano.location ?? volcano.region.label,
+                          ),
+                          _InfoPill(
+                            leading: Icon(Icons.schedule_rounded, size: 16, color: p.mut),
+                            text: volcano.reportPeriod ?? 'Laporan terbaru',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      _buildTabs(context),
+                      const SizedBox(height: 2),
+                      _buildTabBody(context, response),
+                      const SizedBox(height: 18),
+                      Caption(
+                        'Laporan ${volcano.reportPeriod ?? 'terbaru'} · diambil ${DateFormatter.formatRelativeTime(volcano.fetchedAt)}'
+                            .toUpperCase(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: bottomInset + 18,
+          child: _buildCta(context, volcano, isFavorite),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, VolcanoDetail volcano, double topInset) {
+    final p = context.palette;
+    final level = volcano.activityLevel;
+    final startColor = Color.lerp(p.bg, level.color, 0.4)!;
+
+    return Container(
+      height: 230 + topInset,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [startColor, p.bg],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: 20,
+            bottom: 30,
+            child: Text(
+              level.code,
+              style: TextStyle(
+                fontSize: 150,
+                fontWeight: FontWeight.w200,
+                height: 1,
+                letterSpacing: -6,
+                color: level.color.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+          Positioned(
+            top: topInset + 10,
+            left: 20,
+            right: 20,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                RoundIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Kembali',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+                Row(
+                  children: [
+                    RoundIconButton(
+                      icon: Icons.ios_share_rounded,
+                      tooltip: 'Bagikan',
+                      onPressed: () => _share(volcano),
+                    ),
+                    const SizedBox(width: 8),
+                    RoundIconButton(
+                      icon: Icons.sync_rounded,
+                      tooltip: 'Segarkan Laporan',
+                      onPressed: () => ref
+                          .read(volcanoDetailProvider(widget.volcanoId).notifier)
+                          .refresh(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabs(BuildContext context) {
+    final p = context.palette;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (var i = 0; i < _tabs.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: 22),
+              child: InkWell(
+                onTap: () => setState(() => _tab = i),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _tabs[i],
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: _tab == i ? FontWeight.w600 : FontWeight.w400,
+                          color: _tab == i ? p.ink : p.mut,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: _tab == i ? 22 : 0,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: p.amb,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBody(BuildContext context, VolcanoDetailResponse response) {
     final volcano = response.volcano;
 
-    return RefreshIndicator(
-      onRefresh: () => ref.read(volcanoDetailProvider(volcanoId).notifier).refresh(),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    switch (_tab) {
+      case 0:
+        final recommendation = volcano.recommendation?.trim() ?? '';
+        final lines = recommendation.isEmpty
+            ? <String>[]
+            : recommendation
+                .split(RegExp(r'\n+'))
+                .map((line) => line.trim())
+                .where((line) => line.isNotEmpty)
+                .map(_stripListPrefix)
+                .toList();
+
+        return Column(
           children: [
-            // Header card
-            Container(
-              width: double.infinity,
-              color: Colors.white,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      ActivityLevelBadge(level: volcano.activityLevel),
-                      DataFreshnessBadge(
-                        fetchedAt: volcano.fetchedAt,
-                        isStale: response.isStale,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    volcano.name,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  if (volcano.location != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            volcano.region.label,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            volcano.location!,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
+            if (lines.isEmpty)
+              const _ParagraphRow(text: 'Rekomendasi resmi belum tersedia untuk laporan ini.')
+            else
+              for (var i = 0; i < lines.length; i++)
+                _NumberedRow(index: '${i + 1}', text: lines[i]),
+            _NumberedRow(
+              icon: Icons.phone_in_talk_rounded,
+              text: 'PVMBG (022) 7272606, Bandung',
             ),
-
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
-            // Metadata: Report time vs Fetched time (PRD Requirement Section 9.5)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  children: [
-                    _buildMetaRow(
-                      icon: Icons.event_note_rounded,
-                      label: 'Waktu Laporan Sumber:',
-                      value: volcano.reportTimeAvailable && volcano.reportPeriod != null
-                          ? volcano.reportPeriod!
-                          : 'Waktu laporan tidak disediakan oleh sumber',
-                      isHighlight: volcano.reportTimeAvailable,
-                    ),
-                    const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                    _buildMetaRow(
-                      icon: Icons.sync_rounded,
-                      label: 'Terakhir Diambil Aplikasi:',
-                      value: DateFormatter.formatDateTime(volcano.fetchedAt),
-                      isHighlight: false,
-                    ),
-                    if (volcano.author != null) ...[
-                      const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                      _buildMetaRow(
-                        icon: Icons.person_outline_rounded,
-                        label: 'Penyusun Laporan:',
-                        value: volcano.author!,
-                        isHighlight: false,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-
-            // Report photo if available from MAGMA
-            if (volcano.imageUrl != null && volcano.imageUrl!.isNotEmpty) ...[
+          ],
+        );
+      case 1:
+        final visual = volcano.visualObservation?.trim();
+        return Column(
+          children: [
+            if (volcano.imageUrl != null && volcano.imageUrl!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.only(bottom: 16),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
                   child: Image.network(
                     volcano.imageUrl!,
                     fit: BoxFit.cover,
@@ -228,9 +314,13 @@ ${v.sourceUrl ?? ''}
                       if (progress == null) return child;
                       return Container(
                         height: 200,
-                        color: AppColors.surfaceVariant,
+                        color: context.palette.bg,
                         child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         ),
                       );
                     },
@@ -238,193 +328,218 @@ ${v.sourceUrl ?? ''}
                   ),
                 ),
               ),
-            ],
-
-            // Official recommendations section (Highlighted)
-            if (volcano.recommendation != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: _buildSectionCard(
-                  title: 'Rekomendasi Resmi PVMBG',
-                  icon: Icons.shield_outlined,
-                  iconColor: AppColors.primary,
-                  content: volcano.recommendation!,
-                  isAlert: true,
-                ),
-              ),
-            ],
-
-            // Visual observations
-            if (volcano.visualObservation != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: _buildSectionCard(
-                  title: 'Pengamatan Visual',
-                  icon: Icons.visibility_outlined,
-                  iconColor: AppColors.secondary,
-                  content: volcano.visualObservation!,
-                ),
-              ),
-            ],
-
-            // Seismic observations
-            if (volcano.seismicObservation != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: _buildSectionCard(
-                  title: 'Pengamatan Kegempaan',
-                  icon: Icons.show_chart_rounded,
-                  iconColor: AppColors.levelIII,
-                  content: volcano.seismicObservation!,
-                ),
-              ),
-            ],
-
-            // Climatology
-            if (volcano.climatology != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: _buildSectionCard(
-                  title: 'Klimatologi & Cuaca',
-                  icon: Icons.wb_cloudy_outlined,
-                  iconColor: Colors.blueGrey,
-                  content: volcano.climatology!,
-                ),
-              ),
-            ],
-
-            // Other description
-            if (volcano.otherDescription != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: _buildSectionCard(
-                  title: 'Keterangan Lain',
-                  icon: Icons.notes_rounded,
-                  iconColor: AppColors.textSecondary,
-                  content: volcano.otherDescription!,
-                ),
-              ),
-            ],
-
-            // Action button to open official MAGMA report (FR-10 & AC-08)
-            if (volcano.sourceUrl != null) ...[
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: FilledButton.icon(
-                    onPressed: () => _openExternalUrl(volcano.sourceUrl!),
-                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                    label: const Text('Buka Laporan Resmi di MAGMA Indonesia'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            _ParagraphRow(
+              text: visual?.isNotEmpty == true
+                  ? visual!
+                  : 'Pengamatan visual belum tersedia untuk laporan ini.',
+            ),
           ],
-        ),
-      ),
-    );
+        );
+      case 2:
+        final seismic = volcano.seismicObservation?.trim();
+        return _ParagraphRow(
+          text: seismic?.isNotEmpty == true
+              ? seismic!
+              : 'Data kegempaan belum tersedia untuk laporan ini.',
+        );
+      default:
+        final climate = volcano.climatology?.trim();
+        final other = volcano.otherDescription?.trim();
+        return Column(
+          children: [
+            _ParagraphRow(
+              text: climate?.isNotEmpty == true
+                  ? climate!
+                  : 'Data cuaca & klimatologi belum tersedia untuk laporan ini.',
+            ),
+            if (other != null && other.isNotEmpty)
+              _NumberedRow(icon: Icons.notes_rounded, text: other),
+          ],
+        );
+    }
   }
 
-  Widget _buildMetaRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    required bool isHighlight,
-  }) {
+  Widget _buildCta(
+    BuildContext context,
+    VolcanoDetail volcano,
+    bool isFavorite,
+  ) {
+    final p = context.palette;
+    final canOpen = volcano.sourceUrl != null && volcano.sourceUrl!.isNotEmpty;
+
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: AppColors.textSecondary),
-        const SizedBox(width: 8),
+        Material(
+          color: p.dk,
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: () => ref
+                .read(favoriteVolcanoesProvider.notifier)
+                .toggleFavorite(volcano.id),
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: 60,
+              height: 60,
+              child: Icon(
+                isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                size: 26,
+                color: isFavorite ? p.amb : Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 11,
+          child: SizedBox(
+            height: 60,
+            child: FilledButton.icon(
+              onPressed: canOpen ? () => _openUrl(volcano.sourceUrl!) : null,
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+              label: const Text('LAPORAN RESMI MAGMA'),
+              style: FilledButton.styleFrom(
+                backgroundColor: p.amb,
+                foregroundColor: AppColors.inkOnAmber,
+                disabledBackgroundColor: p.line,
+                disabledForegroundColor: p.mut,
+                elevation: 0,
+                shape: const StadiumBorder(),
+                textStyle: const TextStyle(
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+                  letterSpacing: 0.8,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isHighlight ? FontWeight.w700 : FontWeight.w500,
-                  color: isHighlight ? AppColors.textPrimary : AppColors.textSecondary,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSectionCard({
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required String content,
-    bool isAlert = false,
-  }) {
+  String _stripListPrefix(String line) {
+    return line
+        .replaceFirst(RegExp(r'^\s*\d+\s*[\.\)]\s*'), '')
+        .replaceFirst(RegExp(r'^\s*[-•*]\s*'), '');
+  }
+
+  void _share(VolcanoDetail v) {
+    final coordinate = VolcanoCoordinatesData.getCoordinate(v.name, location: v.location);
+    final text = '''
+🌋 Status Gunung ${v.name} — SiagaGunung
+• Tingkat Aktivitas: ${v.activityLevel.title} (${v.activityLevel.label})
+• Wilayah: ${v.region.label} (${v.location ?? '-'})
+• Ketinggian: ▲ ${coordinate.elevation} mdpl
+• Periode Laporan: ${v.reportPeriod ?? 'Terbaru'}
+• Rekomendasi: ${v.recommendation ?? '-'}
+
+Sumber Resmi: MAGMA Indonesia (PVMBG)
+${v.sourceUrl ?? ''}
+''';
+    Share.share(text.trim(), subject: 'Status Gunung ${v.name}');
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  final Widget leading;
+  final String text;
+
+  const _InfoPill({required this.leading, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isAlert ? const Color(0xFFFEF2F2) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isAlert ? AppColors.primary.withOpacity(0.3) : const Color(0xFFE2E8F0),
-        ),
+        color: p.card,
+        borderRadius: BorderRadius.circular(99),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: iconColor),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isAlert ? AppColors.primary : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            content,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: isAlert ? const Color(0xFF7F1D1D) : AppColors.textPrimary,
+          leading,
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 14, color: p.ink),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Future<void> _openExternalUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+class _NumberedRow extends StatelessWidget {
+  final String? index;
+  final IconData? icon;
+  final String text;
+
+  const _NumberedRow({this.index, this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: p.line)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 24,
+            child: icon != null
+                ? Icon(icon, size: 16, color: p.mut)
+                : Text(
+                    index ?? '',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: p.mut,
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 16, height: 1.4, color: p.ink),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ParagraphRow extends StatelessWidget {
+  final String text;
+
+  const _ParagraphRow({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: p.line)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 16, height: 1.45, color: p.ink),
+      ),
+    );
   }
 }
