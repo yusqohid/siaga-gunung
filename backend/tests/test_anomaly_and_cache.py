@@ -77,3 +77,16 @@ async def test_cache_staleness():
     cached = await service.cache.get_list()
     assert cached is not None
     assert cached.is_stale(120) is True  # > 120 minutes is stale
+
+@pytest.mark.asyncio
+async def test_detail_cache_is_bounded():
+    """Detail cache tidak boleh tumbuh tanpa batas."""
+    service = VolcanoService()
+    limit = service.cache.MAX_DETAIL_ENTRIES
+
+    for i in range(limit + 25):
+        await service.cache.set_detail(f"gunung-{i}", {"i": i})
+
+    assert len(service.cache._detail_cache) == limit
+    # Entri terbaru harus tetap tersimpan
+    assert await service.cache.get_detail(f"gunung-{limit + 24}") is not None

@@ -4,7 +4,7 @@ from httpx import AsyncClient, ASGITransport
 from main import app
 from services.volcano_service import volcano_service
 from models.volcano import ActivityLevel, VolcanoSummary
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_test_cache():
@@ -26,6 +26,30 @@ async def test_health_endpoint():
         assert data["status"] == "ok"
         assert data["source_healthy"] is True
         assert data["cache_entry_count"] == 4
+
+@pytest.mark.asyncio
+async def test_health_reports_stale_source_as_unhealthy():
+    """Cache basi tidak boleh dilaporkan sebagai sumber sehat."""
+    old_time = datetime.now(timezone.utc) - timedelta(hours=3)
+    await volcano_service.cache.set_list(
+        [
+            VolcanoSummary(
+                id="merapi",
+                name="Merapi",
+                activity_level=ActivityLevel.LEVEL_III,
+                level_label="Siaga",
+                fetched_at=old_time,
+            )
+        ],
+        fetched_at=old_time,
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["source_healthy"] is False
+        assert data["cache_entry_count"] == 1
 
 @pytest.mark.asyncio
 async def test_list_volcanoes_all():

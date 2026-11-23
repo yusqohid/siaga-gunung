@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from functools import partial
 from typing import Any
 import requests
 from bs4 import BeautifulSoup
@@ -77,8 +78,12 @@ class MagmaScraperAdapter(BaseSourceAdapter):
         """Scrape list of all volcanoes using vendored pinned Magma.py with fallback."""
         loop = asyncio.get_running_loop()
         try:
-            # Pinned upstream scraper from Gabrielbjb/Magma-Indonesia-API
-            raw_dict = await loop.run_in_executor(None, magmalevelonly)
+            # Pinned upstream scraper from Gabrielbjb/Magma-Indonesia-API.
+            # Timeout wajib diteruskan agar requests tidak menggantung tanpa batas.
+            raw_dict = await loop.run_in_executor(
+                None,
+                partial(magmalevelonly, timeout=settings.source_timeout_seconds),
+            )
             entries: list[dict[str, Any]] = []
             for level_header, volcanoes in raw_dict.items():
                 parsed_level = self._parse_level(level_header)
