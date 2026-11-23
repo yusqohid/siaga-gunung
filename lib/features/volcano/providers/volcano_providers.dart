@@ -84,12 +84,19 @@ class VolcanoListNotifier extends StateNotifier<AsyncValue<VolcanoListResponse>>
   }
 
   Future<void> loadVolcanoes({bool forceRefresh = false}) async {
-    state = const AsyncValue.loading();
+    final previous = state;
+    // Jangan kosongkan data yang sudah tampil saat refresh manual;
+    // tampilkan loading hanya bila belum ada data sama sekali.
+    if (!previous.hasValue) {
+      state = const AsyncValue.loading();
+    }
     try {
       final data = await _repository.getVolcanoList(forceRefresh: forceRefresh);
       state = AsyncValue.data(data);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      // Refresh gagal: pertahankan data lama agar layar tidak kosong,
+      // sekaligus laporkan error terbaru.
+      state = AsyncValue<VolcanoListResponse>.error(e, st).copyWithPrevious(previous);
     }
   }
 

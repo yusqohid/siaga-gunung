@@ -20,6 +20,9 @@ class CachedItem(Generic[T]):
         return int((now - self.fetched_at).total_seconds())
 
 class CacheStore:
+    # Batas jumlah entri detail agar cache tidak tumbuh tanpa batas.
+    MAX_DETAIL_ENTRIES = 100
+
     def __init__(self):
         self._lock = asyncio.Lock()
         self._list_cache: CachedItem[Any] | None = None
@@ -45,6 +48,13 @@ class CacheStore:
             self._detail_cache[volcano_id] = CachedItem(
                 data=data, fetched_at=datetime.now(timezone.utc)
             )
+            # Buang entri terlama bila melebihi batas.
+            if len(self._detail_cache) > self.MAX_DETAIL_ENTRIES:
+                oldest_id = min(
+                    self._detail_cache,
+                    key=lambda k: self._detail_cache[k].fetched_at,
+                )
+                self._detail_cache.pop(oldest_id, None)
 
     @property
     def last_successful_fetch(self) -> datetime | None:

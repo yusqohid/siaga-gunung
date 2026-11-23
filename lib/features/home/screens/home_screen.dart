@@ -19,6 +19,19 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final listAsync = ref.watch(volcanoListProvider);
 
+    // Beri tahu pengguna bila refresh gagal namun data lama masih ditampilkan.
+    ref.listen<AsyncValue<VolcanoListResponse>>(volcanoListProvider, (prev, next) {
+      if (next.hasError && next.hasValue) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Gagal memperbarui data. Menampilkan data terakhir.'),
+            ),
+          );
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -60,21 +73,26 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              listAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: LoadingView(message: 'Mengambil status gunung terkini...'),
-                ),
-                error: (err, _) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: ErrorView(
-                    title: 'Gagal Memuat Data',
-                    message: err.toString().replaceFirst('Exception: ', ''),
-                    onRetry: () => ref.read(volcanoListProvider.notifier).refresh(),
+              // Jika refresh gagal tetapi data lama masih ada, tetap tampilkan
+              // data tersebut (PRD AC-06) alih-alih menggantinya dengan error.
+              if (listAsync.hasValue)
+                _buildContent(context, ref, listAsync.requireValue)
+              else
+                listAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: LoadingView(message: 'Mengambil status gunung terkini...'),
                   ),
+                  error: (err, _) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: ErrorView(
+                      title: 'Gagal Memuat Data',
+                      message: err.toString().replaceFirst('Exception: ', ''),
+                      onRetry: () => ref.read(volcanoListProvider.notifier).refresh(),
+                    ),
+                  ),
+                  data: (response) => _buildContent(context, ref, response),
                 ),
-                data: (response) => _buildContent(context, ref, response),
-              ),
             ],
           ),
         ),

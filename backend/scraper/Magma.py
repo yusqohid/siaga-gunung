@@ -1,9 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 
-def magmalevelonly():
+DEFAULT_TIMEOUT_SECONDS = 10
+
+def magmalevelonly(timeout=DEFAULT_TIMEOUT_SECONDS):
     result = {}
-    web = requests.get('https://magma.esdm.go.id/v1/gunung-api/tingkat-aktivitas').text
+    web = requests.get('https://magma.esdm.go.id/v1/gunung-api/tingkat-aktivitas', timeout=timeout).text
     HTMLResult = ((BeautifulSoup(web, "html.parser").find_all('div',  class_= "table-responsive")[0]).find('tbody'))
     linkcheck = 0
     judul2 = ""
