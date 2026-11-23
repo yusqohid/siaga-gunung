@@ -97,40 +97,60 @@ class _NavItem extends StatelessWidget {
 
     return Tooltip(
       message: destination.label,
-      child: Material(
-        color: selected ? p.amb : Colors.transparent,
-        borderRadius: BorderRadius.circular(25),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(25),
-          child: Container(
-            height: 50,
-            constraints: const BoxConstraints(minWidth: 50),
-            padding: EdgeInsets.symmetric(horizontal: selected ? 14 : 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                NavGlyphIcon(
-                  glyph: destination.glyph,
-                  size: 22,
-                  color: selected ? AppColors.inkOnAmber : inactive,
-                ),
-                if (selected) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    destination.label.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.8,
-                      color: AppColors.inkOnAmber,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: selected ? 1 : 0),
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        builder: (context, t, _) {
+          final background = Color.lerp(Colors.transparent, p.amb, t)!;
+          final foreground = Color.lerp(inactive, AppColors.inkOnAmber, t)!;
+
+          return Material(
+            color: background,
+            borderRadius: BorderRadius.circular(25),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(25),
+              child: Container(
+                height: 50,
+                constraints: const BoxConstraints(minWidth: 50),
+                padding: EdgeInsets.symmetric(horizontal: 14 * t),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Transform.scale(
+                      scale: 0.92 + 0.08 * t,
+                      child: NavGlyphIcon(
+                        glyph: destination.glyph,
+                        size: 22,
+                        color: foreground,
+                      ),
                     ),
-                  ),
-                ],
-              ],
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 240),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.centerLeft,
+                      child: selected
+                          ? Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Text(
+                                destination.label.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.8,
+                                  color: AppColors.inkOnAmber,
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
